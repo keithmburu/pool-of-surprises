@@ -1,8 +1,8 @@
 /**
- * @file sparkle-trail.cpp
+ * @file collision-physics.cpp
  * @author Keith Mburu
  * @date 2023-04-02
- * @brief Implements star particle with trailing particles
+ * @brief Implements collision physics between sprites
  */
 
 #include <cmath>
@@ -16,12 +16,12 @@ using namespace std;
 using namespace glm;
 using namespace agl;
 
-struct Particle {
+struct Ball {
+  int id;
   glm::vec3 pos;
   glm::vec3 vel;
   glm::vec4 color;
   float size;
-  float rot;
 };
 
 class Viewer : public Window {
@@ -34,85 +34,130 @@ public:
 
   void setup() {
     setWindowSize(_width, _height);
-    createSparkleTrail();
+    createBalls();
     renderer.setDepthTest(false);
     renderer.blendMode(agl::ADD);
-    renderer.loadTexture("star", "../textures/star4.png", 0);
+    renderer.loadTexture("ball", "../textures/white-circle.png", 0);
   }
 
-void createSparkleTrail()
+void createBalls()
   {
-    for (int i = 0; i < _numParticles; i++) {
-      Particle particle;
-      float time = elapsedTime();
-      particle.pos = vec3(_radius * cos(time), _radius * sin(time), 0);
-      vec3 nextPos = vec3(_radius * cos(time + dt()), _radius * sin(time + dt()), 0);
-      if (i == 0) {
-        particle.vel = nextPos - particle.pos;
-        particle.color = vec4(1, 1, 1, 1);
-      } else {
-        particle.vel = particle.pos - nextPos;
-        particle.vel.x += ((rand() % 10) / 10.0f) * particle.vel.x;
-        particle.vel.y += ((rand() % 10) / 10.0f) * particle.vel.y;
-        particle.color = vec4((rand() % 256)/255.0f, (rand() % 256)/255.0f, (rand() % 256)/255.0f, (rand() % 11) / 10.0f);
-      }
-      particle.size = 3.0;
-      particle.rot = 0.0;
-      mParticles.push_back(particle);
+    for (int i = 0; i < _numBalls; i++) {
+      Ball ball;
+      ball.id = i;
+      ball.pos.x = pow(-1, rand()) * (rand() % 26);
+      ball.pos.y = pow(-1, rand()) * (rand() % 26);
+      // ball.vel = vec3(random(-0.005, 0.005), random(-0.005, 0.005), 0);
+      ball.vel = vec3(0);
+      ball.color.x = std::max(rand() % 256, 64) / 255.0f;
+      ball.color.y = std::max(rand() % 256, 64) / 255.0f;
+      ball.color.z = std::max(rand() % 256, 64) / 255.0f;
+      ball.color.w = 1.0;
+      ball.size = 5.0;
+      mBalls.push_back(ball);
     }
   }
 
-  void updateSparkleTrail()
+  void updateBalls()
   {
-    for (int i = 1; i < mParticles.size(); i++) {
-      Particle particle = mParticles[i];
-      if (particle.color.w > 0) {
-        particle.pos += particle.vel * dt();
-        particle.color -= vec4(0, 0, 0, 0.002);
-        particle.size += 0.001;
-        particle.rot += 0.005;
-      } else {
-        particle.pos = mParticles[0].pos;
-        particle.vel = -mParticles[0].vel;
-        particle.vel.x += ((rand() % 10) / 10.0f) * particle.vel.x;
-        particle.vel.y += ((rand() % 10) / 10.0f) * particle.vel.y;
-        particle.color = vec4((rand() % 256)/255.0f, (rand() % 256)/255.0f, (rand() % 256)/255.0f, (rand() % 11) / 10.0f);
-        particle.size = 3.0;
-        particle.rot = 0.0;
+    std::vector<Ball> newBalls = mBalls;
+    for (int i = 0; i < _numBalls; i++) {
+      Ball ball = mBalls[i];
+      Ball newBall = newBalls[i];
+      for (int j = 0; j < _numBalls; j++) {
+        Ball otherBall = mBalls[j];
+        if (ball.id != otherBall.id && length(ball.pos - otherBall.pos) <= 3.5) {
+          newBall.vel = (otherBall.vel - ball.vel) / 2.0f;
+          break;
+        } 
       }
-      mParticles[i] = particle;
+      newBall.pos += newBall.vel * dt();
+      if (newBall.pos.x < -25 || newBall.pos.x > 25) {
+        newBall.pos.x = (newBall.pos.x < -25)? -25 : newBall.pos.x;
+        newBall.pos.x = (newBall.pos.x > 25)? 25 : newBall.pos.x;
+        newBall.vel.x = -newBall.vel.x;
+      }
+      if (newBall.pos.y < -25 || newBall.pos.y > 25) {
+        newBall.pos.y = (newBall.pos.y < -25)? -25 : newBall.pos.y;
+        newBall.pos.y = (newBall.pos.y > 25)? 25 : newBall.pos.y;
+        newBall.vel.y = -newBall.vel.y;
+      }
+      // cout << "pos: " << newBall.pos << "  vel: " << newBall.vel << endl;
+      newBalls[i] = newBall;
     }
-
-    mParticles[0].pos += mParticles[0].vel * dt();
-    float time = elapsedTime();
-    vec3 nextPos = vec3(_radius * cos(time + dt()), _radius * sin(time + dt()), 0);
-    mParticles[0].vel = nextPos - mParticles[0].pos;
+    mBalls = newBalls;
   }
 
-  void drawSparkleTrail()
+  void drawBalls()
   {
-    renderer.texture("image", "star");
-    for (int i = 0; i < mParticles.size(); i++)
+    renderer.texture("image", "ball");
+    for (int i = 0; i < _numBalls; i++)
     {
-      Particle particle = mParticles[i];
-      renderer.sprite(particle.pos, particle.color, particle.size, particle.rot);
+      renderer.sprite(mBalls[i].pos, mBalls[i].color, mBalls[i].size, 0.0);
     }
   }
 
-  void mouseMotion(int x, int y, int dx, int dy) {
-  }
+void mouseMotion(int x, int y, int dx, int dy) {
+      if (_leftClick) {
+        if (_launching) {
+          _launchVel += vec3(-dx, dy, 0);
+          // cout << _launchVel << endl;
+        } else {
+          float closestDist = 99999999;
+          float closestDistIdx = -1;
+          for (int i = 0; i < _numBalls; i++) {
+            int clickX = (x / 10.0f) - 25;
+            int clickY = -((y / 10.0f) - 25);
+            // cout << ball.pos << " vs " << clickX << " " << clickY << "  diff: " << abs(ball.pos.x - clickX) << " " << abs(ball.pos.y - clickY) << endl;
+            if (length(mBalls[i].pos - vec3(clickX, clickY, 0)) < 2.5) {
+              // cout << "threshold crossed" << endl;
+              float dist = length(mBalls[i].pos - vec3(clickX, clickY, 0));
+              if (dist < closestDist) {
+                closestDist = dist;
+                closestDistIdx = i;
+              }
+              _launching = true;
+            } 
+          }
+          if (_launching) {
+            Ball closestBall = mBalls[closestDistIdx];
+            closestBall.vel = vec3(0);
+            mBalls[closestDistIdx] = closestBall;
+            _activeBall = closestDistIdx;
+            _launchVel = vec3(-dx, dy, 0);
+            // cout << _launchVel << endl;
+          }
+        }
+      }
+   }
 
-  void mouseDown(int button, int mods) {
-  }
+   void mouseDown(int button, int mods) {
+      if (button == GLFW_MOUSE_BUTTON_LEFT) {
+         _leftClick = true;
+      }
+   }
 
-  void mouseUp(int button, int mods) {
-  }
+   void mouseUp(int button, int mods) {
+      if (button == GLFW_MOUSE_BUTTON_LEFT) {
+        _leftClick = false;
+        if (_launching) {
+          // cout << "active ball: " << _activeBall << "  launchVel: " << _launchVel << endl;
+          mBalls[_activeBall].vel = _launchVel;
+          _launching = false;
+        }
+      }
+   }
 
   void scroll(float dx, float dy) {
     eyePos.x += dy;
   }
 
   void keyUp(int key, int mods) {
+    if (key == GLFW_KEY_R) {
+      for (int i = 0; i < _numBalls; i++) {
+        mBalls[i].vel = vec3(0);
+      }  
+    }
   }
 
   void draw() {
@@ -122,8 +167,8 @@ void createSparkleTrail()
     renderer.perspective(glm::radians(60.0f), aspect, 0.1f, 50.0f);
     renderer.lookAt(eyePos, lookPos, up);
 
-    updateSparkleTrail();
-    drawSparkleTrail();
+    updateBalls();
+    drawBalls();
 
     renderer.endShader();
   }
@@ -134,11 +179,16 @@ protected:
   vec3 lookPos = vec3(0, 0, 0);
   vec3 up = vec3(0, 1, 0);
 
-  std::vector<Particle> mParticles;
-  int _numParticles = 20;
+  std::vector<Ball> mBalls;
+  int _numBalls = 10;
   int _width;
   int _height;
   int _radius;
+
+  bool _leftClick = false;
+  bool _launching = false;
+  int _activeBall;
+  vec3 _launchVel;
 };
 
 int main(int argc, char** argv)
