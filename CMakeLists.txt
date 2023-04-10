@@ -81,7 +81,7 @@ endif()
 include_directories(${INCLUDE_DIRS})
 link_directories(${LIBRARY_DIRS})
 
-file(GLOB SOURCES "src/agl/*.h" "src/agl/*.cpp" "src/agl/mesh/*.h" "src/agl/mesh/*.cpp") 
+file(GLOB SOURCES "src/agl/*.h" "src/agl/*.cpp" "src/agl/mesh/*.h" "src/agl/mesh/*.cpp" "src/plymesh.cpp" "src/plymesh.h" "src/osutils.cpp" "src/osutils.h") 
 
 set(SHADERS
     shaders/billboard-animated.fs
