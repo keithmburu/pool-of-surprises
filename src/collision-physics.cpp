@@ -76,7 +76,7 @@ public:
       _tableLength = int(windowY * scaleFactor);
       _tableWidth = int(windowX * scaleFactor);
     } else if (meshName == "cue-stick") {
-      _stickLength = int(windowY * scaleFactor);
+      _stickLength = int(windowZ * scaleFactor);
     }
     return vec3(scaleFactor);
   }
@@ -184,16 +184,23 @@ public:
       renderer.texture("image", "cue-stick");
       renderer.push();
       // center cue stick, align it horizontally, and scale to fit view volume
-      int stickEnd = _stickLength / 2;
-      vec3 stickEndPos = vec3(stickEnd, 0, 0);
-      renderer.translate(_balls[_activeBall].pos - stickEndPos);
-      renderer.translate(vec3(0, 0, 100));
-      renderer.rotate(_launchVel);
-      renderer.scale(_stickScaleVector);   
-      renderer.rotate(vec3(0, M_PI_2, 0));   
+      // vec4 launchVelEyePos = renderer.viewMatrix() * vec4(_launchVel, 1.0);
+      // vec2 launchVelScreenPos = vec2(launchVelEyePos.x, launchVelEyePos.y);
+      // vec3 stickMiddleToEnd = vec3(-launchVelScreenPos * (0.5f * _stickLength / length(launchVelScreenPos)), 0);
+      // renderer.translate(stickMiddleToEnd);
+      renderer.translate(-_launchVel * (0.5f * _stickLength / length(_launchVel)));
+      renderer.rotate(vec3(0, 0, atan2(_launchVel.y, _launchVel.x) - M_PI_2));
+      int mousePosX = mousePosition().x - (_width / 2);
+      int mousePosY = -(mousePosition().y - (_height / 2));
+      vec3 mousePos = vec3(mousePosX, mousePosY, 0);
+      cout << "mouse pos: " << mousePos << endl;
+      renderer.translate(mousePos);
+      // renderer.translate(vec3(0, 0, 50));
+      renderer.scale(_stickScaleVector); 
+      renderer.rotate(vec3(0, M_PI_2, M_PI_2));   
       renderer.translate(_stickCenterVector);
       renderer.mesh(_cueStickMesh);
-      renderer.pop();
+      renderer.pop(); 
     }
   }
 
@@ -273,12 +280,12 @@ public:
         int clickY = -(y - (_height / 2));
         cout << "Click pos: " << clickX << " " << clickY << endl;
         for (int i = 0; i < _numBalls; i++) {
-          vec4 eyePos = renderer.viewMatrix() * vec4(_balls[i].pos, 1.0);
-          vec2 screenPos = vec2(eyePos.x, eyePos.y);
+          vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[i].pos, 1.0);
+          vec2 ballScreenPos = vec2(ballEyePos.x, ballEyePos.y);
           // cout << i << ") " << screenPos << " vs " << clickX << " " << clickY << " dist: " << length(screenPos - vec2(clickX, clickY)) << endl;
-          if (length(screenPos - vec2(clickX, clickY)) < 30) {
+          if (length(ballScreenPos - vec2(clickX, clickY)) < 30) {
             cout << "threshold crossed" << endl;
-            float dist = length(screenPos - vec2(clickX, clickY));
+            float dist = length(ballScreenPos - vec2(clickX, clickY));
             if (dist < closestDist) {
               closestDist = dist;
               closestDistIdx = i;
