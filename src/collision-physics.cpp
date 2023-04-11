@@ -37,41 +37,57 @@ public:
   void setup() {
     setWindowSize(_width, _height);
     _radius = _viewVolumeSide;
-    // srand(time(nullptr));
+    srand(time(nullptr));
 
-    renderer.loadTexture("ball", "../textures/white-circle.png", 0);
+    // renderer.loadTexture("ball", "../textures/white-circle.png", 0);
+    for (int i = 0; i < 16; i++) {
+      renderer.loadTexture("ball_" + to_string(i + 1), "../textures/ball_" + to_string(i + 1) + ".png", 0);
+    }
     renderer.loadTexture("trajectoryBall", "../textures/ParticleBokeh.png", 0);
     renderer.loadTexture("pool-table", "../textures/PoolTable_poolTable_BaseColor.png", 0);
-    renderer.loadTexture("cow", "../textures/droplets-texture.jpeg", 0);
+    renderer.loadTexture("cue-stick", "../textures/Cue_diff.png", 0);
+    // renderer.loadTexture("cow", "../textures/droplets-texture.jpeg", 0);
     renderer.loadShader("phong-pixel", "../shaders/phong-pixel.vs", "../shaders/phong-pixel.fs");
     renderer.loadShader("texture", "../shaders/texture.vs", "../shaders/texture.fs");
     renderer.loadShader("cubemap", "../shaders/cubemap.vs", "../shaders/cubemap.fs");
 
     _poolTableMesh = PLYMesh("../models/pool-table.ply");
+    _cueStickMesh = PLYMesh("../models/cue-stick.ply");
     // _poolTableMesh = PLYMesh("../models/cow.ply");
 
-    vec3 minBounds = _poolTableMesh.minBounds();
-    vec3 maxBounds = _poolTableMesh.maxBounds();
+    _tableScaleVector = scaleVector(_poolTableMesh, "pool-table");
+    _tableCenterVector = centerVector(_poolTableMesh, "pool-table");
+
+    _stickScaleVector = scaleVector(_cueStickMesh, "cue-stick");
+    _stickCenterVector = centerVector(_cueStickMesh, "cue-stick");
+
+    createBalls();
+  }
+
+  vec3 scaleVector(PLYMesh mesh, string meshName) {
+    vec3 minBounds = mesh.minBounds();
+    vec3 maxBounds = mesh.maxBounds();
     float windowX = abs(minBounds[0]) + (maxBounds[0]);
     float windowY = abs(minBounds[1]) + (maxBounds[1]);
     float windowZ = abs(minBounds[2]) + (maxBounds[2]);
-    // float xScaleFactor = _height / windowX;
-    // float yScaleFactor = _width / windowY;
-    // float zScaleFactor = _viewVolumeSide / windowZ;
-    // float scaleFactor = std::min(std::min(xScaleFactor, yScaleFactor), zScaleFactor);
     float maxDimension = std::max(std::max(windowX, windowY), windowZ);
     float scaleFactor = _viewVolumeSide / maxDimension;
-    _tableLength = int(windowY * scaleFactor);
-    _tableWidth = int(windowX * scaleFactor);
-    cout << _tableLength << " " << _tableWidth << endl;
-    _scaleVector = vec3(scaleFactor);
+    if (meshName == "pool-table") {
+      _tableLength = int(windowY * scaleFactor);
+      _tableWidth = int(windowX * scaleFactor);
+    } else if (meshName == "cue-stick") {
+      _stickLength = int(windowY * scaleFactor);
+    }
+    return vec3(scaleFactor);
+  }
 
+ vec3 centerVector(PLYMesh mesh, string meshName) {
+    vec3 minBounds = mesh.minBounds();
+    vec3 maxBounds = mesh.maxBounds();
     float centroidX = (minBounds[0] + maxBounds[0]) / 2.0f;
     float centroidY = (minBounds[1] + maxBounds[1]) / 2.0f;
     float centroidZ = (minBounds[2] + maxBounds[2]) / 2.0f;
-    _centerVector = vec3(-centroidX, -centroidY, -centroidZ);
-
-    createBalls();
+    return vec3(-centroidX, -centroidY, -centroidZ);
   }
 
   void createBalls()
@@ -83,102 +99,123 @@ public:
       ball.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
       // ball.vel = vec3(random(-0.005, 0.005), random(-0.005, 0.005), 0);
       ball.vel = vec3(0);
-      ball.color.x = std::max(rand() % 256, 64) / 255.0f;
-      ball.color.y = std::max(rand() % 256, 64) / 255.0f;
-      ball.color.z = std::max(rand() % 256, 64) / 255.0f;
-      ball.color.w = 1.0;
+      // ball.color.x = std::max(rand() % 256, 64) / 255.0f;
+      // ball.color.y = std::max(rand() % 256, 64) / 255.0f;
+      // ball.color.z = std::max(rand() % 256, 64) / 255.0f;
+      // ball.color.w = 1.0;
+      ball.color = vec4(1.0);
       ball.size = _viewVolumeSide / 20;
-      _Balls.push_back(ball);
+      _balls.push_back(ball);
+    }
+    for (int i = 0; i < 6; i++) {
+      vec3 hole;
+      // hole.x = ((float(i % 3) / 2) * _tableLength) - (_tableLength / 2);
+      hole.x = (i % 3) == 0? -(_tableLength / 2) + 50 : (i % 3) == 1? 0 :(_tableLength / 2) - 50;
+      hole.y = (i < 3)? (_tableWidth / 2) - 50 : -(_tableWidth / 2) + 50;
+      hole.z = 0;
+      cout << hole << endl;
+      _holes.push_back(hole);
     }
   }
 
   void updateBalls()
   {
-    std::vector<Ball> newBalls = _Balls;
+    std::vector<Ball> newBalls = _balls;
     for (int i = 0; i < _numBalls; i++) {
-      Ball ball = _Balls[i];
+      Ball ball = _balls[i];
       Ball newBall = newBalls[i];
       for (int j = 0; j < _numBalls; j++) {
-        Ball otherBall = _Balls[j];
+        Ball otherBall = _balls[j];
         if (ball.id != otherBall.id && length(ball.pos - otherBall.pos) <= _viewVolumeSide / 20) {
           newBall.vel = (otherBall.vel - ball.vel) / 2.0f;
           break;
         } 
       }
       newBall.pos += newBall.vel * dt();
-      int xThresh = (_tableLength - 100) / 2;
+      int xThresh = (_tableLength - 75) / 2;
       if (newBall.pos.x < -xThresh || newBall.pos.x > xThresh) {
         newBall.pos.x = (newBall.pos.x < -xThresh)? -xThresh : newBall.pos.x;
         newBall.pos.x = (newBall.pos.x > xThresh)? xThresh : newBall.pos.x;
         newBall.vel.x = -newBall.vel.x;
       }
-      int yThresh = (_tableWidth - 100) / 2;
+      int yThresh = (_tableWidth - 75) / 2;
       if (newBall.pos.y < -yThresh || newBall.pos.y > yThresh) {
         newBall.pos.y = (newBall.pos.y < -yThresh)? -yThresh : newBall.pos.y;
         newBall.pos.y = (newBall.pos.y > yThresh)? yThresh : newBall.pos.y;
         newBall.vel.y = -newBall.vel.y;
       }
+      for (int i = 0; i < 6; i++) {
+        if (length(_holes[i] - newBall.pos) < _viewVolumeSide / 100) {
+            newBall.pos.x = pow(-1, rand()) * (rand() % ((_tableLength - 100) / 2));
+            newBall.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
+            newBall.vel = vec3(0);
+            newBall.size = _viewVolumeSide / 20;
+        } else if (length(_holes[i] - newBall.pos) < _viewVolumeSide / 75) {
+            // newBall.vel += 0.1f * (_holes[i] - newBall.pos);
+            newBall.size -= 0.5;
+        } 
+      }
       // cout << "pos: " << newBall.pos << "  vel: " << newBall.vel << endl;
       newBalls[i] = newBall;
     }
-    _Balls = newBalls;
+    _balls = newBalls;
   }
 
   void drawTable() {
-    renderer.push();
-    renderer.beginShader("texture");
+    renderer.setUniform("materialColor", vec4(1));
+    renderer.setUniform("poolBall", false);
     renderer.texture("image", "pool-table");
+    renderer.push();
     // renderer.texture("image", "cow");
     // center table, align it horizontally, and scale to fit view volume
-    renderer.translate(vec3(0, 0, -100));  
-    renderer.scale(_scaleVector);   
-    // renderer.rotate(vec3(0, M_PI / 4, M_PI / 2));   
-    renderer.rotate(vec3(0, 0, M_PI / 2));
-    renderer.translate(_centerVector);
+    renderer.translate(vec3(0, 0, -75));  
+    renderer.scale(_tableScaleVector);   
+    // renderer.rotate(vec3(0, M_PI_4, M_PI_2));   
+    renderer.rotate(vec3(0, 0, M_PI_2));
+    renderer.translate(_tableCenterVector);
     renderer.mesh(_poolTableMesh);
-    renderer.endShader();
     renderer.pop();
+  }
+
+  void drawCueStick() {
+    if (_launching) {
+      renderer.setUniform("materialColor", vec4(1));
+      renderer.setUniform("poolBall", false);
+      renderer.texture("image", "cue-stick");
+      renderer.push();
+      // center cue stick, align it horizontally, and scale to fit view volume
+      int stickEnd = _stickLength / 2;
+      vec3 stickEndPos = vec3(stickEnd, 0, 0);
+      renderer.translate(_balls[_activeBall].pos - stickEndPos);
+      renderer.translate(vec3(0, 0, 100));
+      renderer.rotate(_launchVel);
+      renderer.scale(_stickScaleVector);   
+      renderer.rotate(vec3(0, M_PI_2, 0));   
+      renderer.translate(_stickCenterVector);
+      renderer.mesh(_cueStickMesh);
+      renderer.pop();
+    }
   }
 
   void drawBalls()
   {
-    vec3 cameraPos = renderer.cameraPosition();
-
-    // sort
-    for (int i = 1; i < _Balls.size(); i++)
-    {
-      Ball ball1 = _Balls[i];
-      Ball ball2 = _Balls[i - 1];
-      float dSqr1 = length2(ball1.pos - cameraPos);
-      float dSqr2 = length2(ball2.pos - cameraPos);
-      if (dSqr2 < dSqr1)
-      {
-        _Balls[i] = ball2;
-        _Balls[i - 1] = ball1;
-      }
-    }
-
-    // draw
-    renderer.push();
-    // renderer.rotate(vec3(-M_PI / 4, 0, 0));  
-    // renderer.translate(vec3(0, 0, 150));  
-
-    renderer.texture("image", "ball");
-    renderer.beginShader("phong-pixel");
     for (int i = 0; i < _numBalls; i++)
     {
+      renderer.setUniform("materialColor", _balls[i].color);
+      renderer.setUniform("poolBall", true);
+      // renderer.texture("image", "ball");
+      renderer.texture("image", "ball_" + to_string(i + 1));
       renderer.push();
-      renderer.translate(_Balls[i].pos);
-      renderer.scale(vec3(_Balls[i].size));
+      renderer.translate(_balls[i].pos);
+      renderer.rotate(vec3(0, M_PI_2, M_PI_2));
+      renderer.scale(vec3(_balls[i].size));
       // setting phong shading uniforms
-      setupReflections(i);
       renderer.sphere();
-      vec4 eyePos = renderer.viewMatrix() * vec4(_Balls[i].pos, 1.0);
-      vec2 screenPos = vec2(eyePos.x, eyePos.y);
-      renderer.text(to_string(_Balls[i].id), screenPos.x + (_height / 2), _width - (screenPos.y + (_width / 2)));
       renderer.pop();
+      // vec4 eyePos = renderer.viewMatrix() * vec4(_balls[i].pos, 1.0);
+      // vec2 screenPos = vec2(eyePos.x, eyePos.y);
+      // renderer.text(to_string(_balls[i].id), screenPos.x + (_height / 2), _width - (screenPos.y + (_width / 2)));
     }
-    renderer.endShader();
 
     if (_launching) {
       renderer.texture("image", "trajectoryBall");
@@ -195,16 +232,13 @@ public:
       renderer.setDepthTest(true);
       renderer.blendMode(agl::DEFAULT);
     }
- 
-    renderer.pop();
   }
 
-  void setupReflections(int ballIdx) {
+  void setupReflections() {
     renderer.setUniform("ViewMatrix", renderer.viewMatrix());
     renderer.setUniform("ProjMatrix", renderer.projectionMatrix());
     renderer.setUniform("lightPos", _lightPos);
     renderer.setUniform("lightColor", _lightColor.x, _lightColor.y, _lightColor.z);
-    renderer.setUniform("materialColor", _Balls[ballIdx].color);
     renderer.setUniform("eyePos", _camPos);
     float ka = 0.1, kd = 0.7, ks = 0.6;
     float phongExp = 50.0;
@@ -230,17 +264,18 @@ public:
         // _launchVel = vec3(launchVel.x, launchVel.y, launchVel.z);
         // cout << _launchVel << endl;
         for (int i = 0; i < _trajectoryBalls.size(); i++) {
-          _trajectoryBalls[i].pos = _Balls[_activeBall].pos + ((1.0f / (i+1)) * _launchVel);
+          _trajectoryBalls[i].pos = _balls[_activeBall].pos + ((1.0f / (i+1)) * _launchVel);
         }
       } else if (!_orbiting) {
         float closestDist = 99999999;
         float closestDistIdx = -1;
+        int clickX = x - (_width / 2);
+        int clickY = -(y - (_height / 2));
+        cout << "Click pos: " << clickX << " " << clickY << endl;
         for (int i = 0; i < _numBalls; i++) {
-          int clickX = x - (_width / 2);
-          int clickY = -(y - (_height / 2));
-          vec4 eyePos = renderer.viewMatrix() * vec4(_Balls[i].pos, 1.0);
+          vec4 eyePos = renderer.viewMatrix() * vec4(_balls[i].pos, 1.0);
           vec2 screenPos = vec2(eyePos.x, eyePos.y);
-          cout << i << ") " << screenPos << " vs " << clickX << " " << clickY << " dist: " << length(screenPos - vec2(clickX, clickY)) << endl;
+          // cout << i << ") " << screenPos << " vs " << clickX << " " << clickY << " dist: " << length(screenPos - vec2(clickX, clickY)) << endl;
           if (length(screenPos - vec2(clickX, clickY)) < 30) {
             cout << "threshold crossed" << endl;
             float dist = length(screenPos - vec2(clickX, clickY));
@@ -255,15 +290,15 @@ public:
         if (_launching) {
           _activeBall = closestDistIdx;
           // cout << "1) active ball: " << _activeBall << "  launchVel: " << _launchVel << endl;
-          _Balls[_activeBall].vel = vec3(0);
-          _Balls[_activeBall].color /= 2.0f;
+          _balls[_activeBall].vel = vec3(0);
+          _balls[_activeBall].color /= 2.0f;
           _launchVel = vec3(-dx, dy, 0);
           // vec4 launchVel = renderer.viewMatrix() * vec4(-dx, dy, 0, 0);
           // _launchVel = vec3(launchVel.x, launchVel.y, launchVel.z);
           // cout << _launchVel << endl;
           for (int i = 0; i < 5; i++) {
             Ball trajectoryBall;
-            trajectoryBall.pos = _Balls[_activeBall].pos + ((1.0f / (i+1)) * _launchVel);
+            trajectoryBall.pos = _balls[_activeBall].pos + ((1.0f / (i+1)) * _launchVel);
             trajectoryBall.color = vec4(0.8);
             trajectoryBall.size = 5 + i;
             _trajectoryBalls.push_back(trajectoryBall);
@@ -275,10 +310,10 @@ public:
       if (_orbiting) {
         float ONE_DEG = 0.017;
         _elevation += dy * (M_PI / 180);
-        if (_elevation > (M_PI / 2) - ONE_DEG) {
-           _elevation = (M_PI / 2) - ONE_DEG;
-        } else if (_elevation < -((M_PI / 2) - ONE_DEG)) {
-           _elevation = -((M_PI / 2) - ONE_DEG);
+        if (_elevation > (M_PI_2) - ONE_DEG) {
+           _elevation = (M_PI_2) - ONE_DEG;
+        } else if (_elevation < -((M_PI_2) - ONE_DEG)) {
+           _elevation = -((M_PI_2) - ONE_DEG);
         }
         _azimuth -= dx * (M_PI / 180);
         if (_azimuth > 2 * M_PI) {
@@ -301,8 +336,8 @@ public:
       _leftClick = false;
       if (_launching) {
         // cout << "2) active ball: " << _activeBall << "  launchVel: " << _launchVel << endl;
-        _Balls[_activeBall].vel = _launchVel;
-        _Balls[_activeBall].color *= 2.0f;
+        _balls[_activeBall].vel = _launchVel;
+        _balls[_activeBall].color *= 2.0f;
         _launching = false;
         _trajectoryBalls.clear();
       } else if (_orbiting) {
@@ -329,7 +364,7 @@ public:
   void keyUp(int key, int mods) {
     if (key == GLFW_KEY_R) {
       for (int i = 0; i < _numBalls; i++) {
-        _Balls[i].vel = vec3(0);
+        _balls[i].vel = vec3(0);
       }  
     }
   }
@@ -341,12 +376,15 @@ public:
     _camPos = updatePos(0);
     renderer.lookAt(_camPos, _lookPos, _up);
 
-    _lightPos = updatePos(M_PI / 4);
+    _lightPos = updatePos(M_PI_4);
 
+    renderer.beginShader("phong-pixel");
+    setupReflections();
     drawTable();
-
+    drawCueStick();
     updateBalls();
     drawBalls();
+    renderer.endShader();
 
   }
 
@@ -357,8 +395,8 @@ protected:
   vec3 _lookPos = vec3(0, 0, 0);
   vec3 _up = vec3(0, 1, 0);
 
-  std::vector<Ball> _Balls;
-  int _numBalls = 10;
+  std::vector<Ball> _balls;
+  int _numBalls = 16;
   int _width;
   int _height;
   int _radius;
@@ -367,6 +405,7 @@ protected:
   bool _launching = false;
   std::vector<Ball> _trajectoryBalls;
   // std::vector<Ball> _trailingBalls;
+  std::vector<vec3> _holes;
   int _activeBall;
   vec3 _launchVel;
 
@@ -379,8 +418,12 @@ protected:
   int _tableWidth;
 
   PLYMesh _poolTableMesh;
-  vec3 _centerVector;
-  vec3 _scaleVector;
+  PLYMesh _cueStickMesh;
+  vec3 _tableScaleVector;
+  vec3 _stickScaleVector;
+  vec3 _tableCenterVector;
+  vec3 _stickCenterVector;
+  int _stickLength;
 };
 
 int main(int argc, char** argv)
