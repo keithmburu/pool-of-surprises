@@ -16,11 +16,14 @@ uniform vec3 lightPos;
 uniform vec3 lightColor;
 uniform vec4 materialColor; 
 
+uniform bool poolBall;
+
 uniform vec3 eyePos;
 out vec3 normalVec;
 out vec3 eyeVec;
 out vec3 lightVec;
-out vec4 mColor;
+out vec3 mColor;
+out vec2 uv;
 
 void main()
 {
@@ -32,5 +35,11 @@ void main()
    eyeVec = normalize(eyePos.xyz - pos.xyz);
    lightVec = normalize(lightPos.xyz - pos.xyz);
    gl_Position = ProjMatrix * pos;
-   mColor = materialColor;
+   mColor = materialColor.xyz;
+
+   if (poolBall) {
+      uv = vec2(vTextureCoords.x, vTextureCoords.y);
+   } else {
+      uv = vec2(vTextureCoords.x, -vTextureCoords.y);
+   }
 }
