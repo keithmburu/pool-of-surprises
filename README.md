@@ -74,3 +74,10 @@ particles/build $ ../bin/explosion
 4. Rain
 <img src="demo/rain.gif" width="400">
  -->
+
+## Credits
+
+- "Pool Table" (https://skfb.ly/oCIBB) by Jayden Miles is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
+- "Cue stick (LP)" (https://skfb.ly/6ASFq) by afferu is licensed under Creative Commons Attribution-ShareAlike (http://creativecommons.org/licenses/by-sa/4.0/).
+
