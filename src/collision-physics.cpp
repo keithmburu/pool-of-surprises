@@ -39,14 +39,18 @@ public:
     _radius = _viewVolumeSide;
     srand(time(nullptr));
 
-    // renderer.loadTexture("ball", "../textures/white-circle.png", 0);
     for (int i = 0; i < 16; i++) {
-      renderer.loadTexture("ball_" + to_string(i + 1), "../textures/ball_" + to_string(i + 1) + ".png", 0);
+      renderer.loadTexture("ball_" + to_string(i + 1), "../textures/pong-balls/ball_" + to_string(i + 1) + ".png", 0);
     }
-    renderer.loadTexture("trajectoryBall", "../textures/ParticleBokeh.png", 0);
-    renderer.loadTexture("pool-table", "../textures/PoolTable_poolTable_BaseColor.png", 0);
-    renderer.loadTexture("cue-stick", "../textures/Cue_diff.png", 0);
-    // renderer.loadTexture("cow", "../textures/droplets-texture.jpeg", 0);
+    renderer.loadTexture("trajectoryBall", "../textures/pong-balls/ParticleBokeh.png", 0);
+    renderer.loadTexture("pool-table", "../textures/pool-table/PoolTable_poolTable_BaseColor.png", 0);
+    renderer.loadTexture("cue-stick", "../textures/cue-stick/Cue_diff.png", 0);
+
+    renderer.loadCubemap("blue-photo-studio", "../cubemaps/blue-photo-studio", 1);
+    renderer.loadCubemap("colorful-studio", "../cubemaps/colorful-studio", 1);
+    renderer.loadCubemap("shanghai-bund", "../cubemaps/shanghai-bund", 1);
+    // renderer.loadCubemap("sea-cubemap", "../cubemaps/sea-cubemap", 1);
+
     renderer.loadShader("phong-pixel", "../shaders/phong-pixel.vs", "../shaders/phong-pixel.fs");
     renderer.loadShader("texture", "../shaders/texture.vs", "../shaders/texture.fs");
     renderer.loadShader("cubemap", "../shaders/cubemap.vs", "../shaders/cubemap.fs");
@@ -184,17 +188,13 @@ public:
       renderer.texture("image", "cue-stick");
       renderer.push();
       // center cue stick, align it horizontally, and scale to fit view volume
-      // vec4 launchVelEyePos = renderer.viewMatrix() * vec4(_launchVel, 1.0);
-      // vec2 launchVelScreenPos = vec2(launchVelEyePos.x, launchVelEyePos.y);
-      // vec3 stickMiddleToEnd = vec3(-launchVelScreenPos * (0.5f * _stickLength / length(launchVelScreenPos)), 0);
-      // renderer.translate(stickMiddleToEnd);
+      renderer.translate(-_launchVel * 0.2f);
       renderer.translate(-_launchVel * (0.5f * _stickLength / length(_launchVel)));
+      cout << _launchVel << " " << -_launchVel * (0.5f * _stickLength / length(_launchVel)) << endl;
+      vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[_activeBall].pos, 1.0);
+      vec3 ballScreenPos = vec3(ballEyePos.x, ballEyePos.y, 0);
+      renderer.translate(ballScreenPos);
       renderer.rotate(vec3(0, 0, atan2(_launchVel.y, _launchVel.x) - M_PI_2));
-      int mousePosX = mousePosition().x - (_width / 2);
-      int mousePosY = -(mousePosition().y - (_height / 2));
-      vec3 mousePos = vec3(mousePosX, mousePosY, 0);
-      cout << "mouse pos: " << mousePos << endl;
-      renderer.translate(mousePos);
       // renderer.translate(vec3(0, 0, 50));
       renderer.scale(_stickScaleVector); 
       renderer.rotate(vec3(0, M_PI_2, M_PI_2));   
@@ -307,7 +307,7 @@ public:
             Ball trajectoryBall;
             trajectoryBall.pos = _balls[_activeBall].pos + ((1.0f / (i+1)) * _launchVel);
             trajectoryBall.color = vec4(0.8);
-            trajectoryBall.size = 5 + i;
+            trajectoryBall.size = 5 + (4 - i);
             _trajectoryBalls.push_back(trajectoryBall);
           }
         } else {
@@ -378,19 +378,28 @@ public:
 
   void draw() {
     float aspect = ((float) width()) / height();
-    renderer.perspective(glm::radians(60.0f), aspect, 0.1f, _viewVolumeSide * 2);
+    renderer.perspective(glm::radians(60.0f), aspect, 0.1f, _viewVolumeSide * 10);
  
     _camPos = updatePos(0);
     renderer.lookAt(_camPos, _lookPos, _up);
 
     _lightPos = updatePos(M_PI_4);
 
+    renderer.push();
+    renderer.rotate(vec3(-M_PI_2, 0, 0));
     renderer.beginShader("phong-pixel");
     setupReflections();
     drawTable();
     drawCueStick();
     updateBalls();
     drawBalls();
+    renderer.endShader();
+    renderer.pop();
+
+    renderer.beginShader("cubemap");
+    // renderer.cubemap("cubemap", "sea-cubemap");
+    renderer.cubemap("cubemap", "shanghai-bund");
+    renderer.skybox(_viewVolumeSide * 5);
     renderer.endShader();
 
   }
