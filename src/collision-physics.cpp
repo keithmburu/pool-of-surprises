@@ -44,15 +44,16 @@ public:
     }
     renderer.loadTexture("trajectoryBall", "../textures/pong-balls/ParticleBokeh.png", 0);
     renderer.loadTexture("pool-table", "../textures/pool-table/PoolTable_poolTable_BaseColor.png", 0);
+    // renderer.loadTexture("pool-table-normal", "../textures/pool-table/PoolTable_poolTable_Normal.png", 1);
     renderer.loadTexture("cue-stick", "../textures/cue-stick/Cue_diff.png", 0);
 
-    renderer.loadCubemap("blue-photo-studio", "../cubemaps/blue-photo-studio", 1);
-    renderer.loadCubemap("colorful-studio", "../cubemaps/colorful-studio", 1);
-    renderer.loadCubemap("shanghai-bund", "../cubemaps/shanghai-bund", 1);
-    // renderer.loadCubemap("sea-cubemap", "../cubemaps/sea-cubemap", 1);
+    // renderer.loadCubemap("blue-photo-studio", "../cubemaps/blue-photo-studio", 5);
+    renderer.loadCubemap("colorful-studio", "../cubemaps/colorful-studio", 5);
+    // renderer.loadCubemap("shanghai-bund", "../cubemaps/shanghai-bund", 5);
+    // renderer.loadCubemap("sea-cubemap", "../cubemaps/sea-cubemap", 5);
 
-    renderer.loadShader("phong-pixel", "../shaders/phong-pixel.vs", "../shaders/phong-pixel.fs");
-    renderer.loadShader("texture", "../shaders/texture.vs", "../shaders/texture.fs");
+    // renderer.loadShader("phong-pixel", "../shaders/phong-pixel.vs", "../shaders/phong-pixel.fs");
+    // renderer.loadShader("texture", "../shaders/texture.vs", "../shaders/texture.fs");
     renderer.loadShader("cubemap", "../shaders/cubemap.vs", "../shaders/cubemap.fs");
 
     _poolTableMesh = PLYMesh("../models/pool-table.ply");
@@ -117,7 +118,7 @@ public:
       hole.x = (i % 3) == 0? -(_tableLength / 2) + 50 : (i % 3) == 1? 0 :(_tableLength / 2) - 50;
       hole.y = (i < 3)? (_tableWidth / 2) - 50 : -(_tableWidth / 2) + 50;
       hole.z = 0;
-      cout << hole << endl;
+      // cout << hole << endl;
       _holes.push_back(hole);
     }
   }
@@ -128,6 +129,7 @@ public:
     for (int i = 0; i < _numBalls; i++) {
       Ball ball = _balls[i];
       Ball newBall = newBalls[i];
+      // collision detection
       for (int j = 0; j < _numBalls; j++) {
         Ball otherBall = _balls[j];
         if (ball.id != otherBall.id && length(ball.pos - otherBall.pos) <= _viewVolumeSide / 20) {
@@ -136,6 +138,7 @@ public:
         } 
       }
       newBall.pos += newBall.vel * dt();
+      // boundary detection
       int xThresh = (_tableLength - 75) / 2;
       if (newBall.pos.x < -xThresh || newBall.pos.x > xThresh) {
         newBall.pos.x = (newBall.pos.x < -xThresh)? -xThresh : newBall.pos.x;
@@ -159,6 +162,8 @@ public:
             newBall.size -= 0.5;
         } 
       }
+      // friction
+      newBall.vel *= 0.99f;
       // cout << "pos: " << newBall.pos << "  vel: " << newBall.vel << endl;
       newBalls[i] = newBall;
     }
@@ -169,8 +174,8 @@ public:
     renderer.setUniform("materialColor", vec4(1));
     renderer.setUniform("poolBall", false);
     renderer.texture("image", "pool-table");
+    // renderer.texture("bumpMap", "pool-table-normal");
     renderer.push();
-    // renderer.texture("image", "cow");
     // center table, align it horizontally, and scale to fit view volume
     renderer.translate(vec3(0, 0, -75));  
     renderer.scale(_tableScaleVector);   
@@ -190,7 +195,7 @@ public:
       // center cue stick, align it horizontally, and scale to fit view volume
       renderer.translate(-_launchVel * 0.2f);
       renderer.translate(-_launchVel * (0.5f * _stickLength / length(_launchVel)));
-      cout << _launchVel << " " << -_launchVel * (0.5f * _stickLength / length(_launchVel)) << endl;
+      // cout << _launchVel << " " << -_launchVel * (0.5f * _stickLength / length(_launchVel)) << endl;
       vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[_activeBall].pos, 1.0);
       vec3 ballScreenPos = vec3(ballEyePos.x, ballEyePos.y, 0);
       renderer.translate(ballScreenPos);
@@ -278,7 +283,7 @@ public:
         float closestDistIdx = -1;
         int clickX = x - (_width / 2);
         int clickY = -(y - (_height / 2));
-        cout << "Click pos: " << clickX << " " << clickY << endl;
+        cout << "click pos: " << clickX << " " << clickY << endl;
         for (int i = 0; i < _numBalls; i++) {
           vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[i].pos, 1.0);
           vec2 ballScreenPos = vec2(ballEyePos.x, ballEyePos.y);
@@ -385,22 +390,30 @@ public:
 
     _lightPos = updatePos(M_PI_4);
 
+    // renderer.beginShader("phong-pixel");
+    renderer.beginShader("cubemap");
     renderer.push();
     renderer.rotate(vec3(-M_PI_2, 0, 0));
-    renderer.beginShader("phong-pixel");
     setupReflections();
     drawTable();
     drawCueStick();
     updateBalls();
     drawBalls();
-    renderer.endShader();
     renderer.pop();
-
-    renderer.beginShader("cubemap");
+    renderer.setUniform("ModelMatrix", renderer.modelMatrix());
     // renderer.cubemap("cubemap", "sea-cubemap");
-    renderer.cubemap("cubemap", "shanghai-bund");
+    renderer.cubemap("cubemap", "colorful-studio");
+    renderer.setUniform("skybox", true);
     renderer.skybox(_viewVolumeSide * 5);
+    renderer.setUniform("skybox", false);
     renderer.endShader();
+    // renderer.endShader();
+
+    // renderer.beginShader("cubemap");
+    // // renderer.cubemap("cubemap", "sea-cubemap");
+    // renderer.cubemap("cubemap", "colorful-studio");
+    // renderer.skybox(_viewVolumeSide * 5);
+    // renderer.endShader();
 
   }
 
