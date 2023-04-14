@@ -615,8 +615,8 @@ void Renderer::loadCubemap(const std::string& name,
       dir + "/left.png",
       dir + "/top.png",
       dir + "/bottom.png",
-      dir + "/back.png",
       dir + "/front.png",
+      dir + "/back.png",
   };
   loadCubemap(name, faces, slot);
 }
