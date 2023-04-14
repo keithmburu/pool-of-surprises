@@ -162,6 +162,8 @@ class Renderer {
    * @verbinclude select_drag.cpp
    */
   glm::mat4 viewMatrix() const { return _viewMatrix; }
+
+  glm::mat4 modelMatrix() const { return _trs; }
   ///@}
 
   /** @name Shaders
