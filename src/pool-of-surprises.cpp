@@ -8,6 +8,7 @@
 #include <cmath>
 #include <string>
 #include <vector>
+#include <map>
 #include <algorithm>
 #include "agl/window.h"
 #include "unistd.h"
@@ -24,6 +25,7 @@ struct Ball {
   glm::vec3 vel;
   glm::vec4 color;
   float size;
+  vec3 gravity;
 };
 
 class Viewer : public Window {
@@ -31,42 +33,56 @@ public:
   Viewer() : Window() {
     _width = 500;
     _height = 500;
-    _viewVolumeSide = 500;
+    _viewVolumeSide = _radius = 500;
+    for (string effect : _chaosEffects) {
+      _chaosEffectStatus[effect] = false;
+    }
   }
 
   void setup() {
     setWindowSize(_width, _height);
-    _radius = _viewVolumeSide;
     srand(time(nullptr));
 
+    loadTextures();
+    loadCubemaps();
+    loadShaders();
+    loadMeshes();
+
+    createPoolBalls();
+    createHoles();
+  }
+
+  void loadTextures() {
     for (int i = 0; i < 16; i++) {
-      renderer.loadTexture("ball_" + to_string(i + 1), "../textures/pong-balls/ball_" + to_string(i + 1) + ".png", 0);
+      renderer.loadTexture("ball_" + to_string(i + 1), "../textures/pool-balls/ball_" + to_string(i + 1) + ".png", 0);
     }
-    renderer.loadTexture("trajectoryBall", "../textures/pong-balls/ParticleBokeh.png", 0);
+    renderer.loadTexture("trajectoryBall", "../textures/pool-balls/ParticleBokeh.png", 0);
     renderer.loadTexture("pool-table", "../textures/pool-table/PoolTable_poolTable_BaseColor.png", 0);
-    // renderer.loadTexture("pool-table-normal", "../textures/pool-table/PoolTable_poolTable_Normal.png", 1);
+    renderer.loadTexture("pool-table-normal", "../textures/pool-table/PoolTable_poolTable_Normal.png", 1);
     renderer.loadTexture("cue-stick", "../textures/cue-stick/Cue_diff.png", 0);
+  }
 
+  void loadCubemaps() {
     // renderer.loadCubemap("blue-photo-studio", "../cubemaps/blue-photo-studio", 5);
-    renderer.loadCubemap("colorful-studio", "../cubemaps/colorful-studio", 5);
+    // renderer.loadCubemap("colorful-studio", "../cubemaps/colorful-studio", 5);
     // renderer.loadCubemap("shanghai-bund", "../cubemaps/shanghai-bund", 5);
-    // renderer.loadCubemap("sea-cubemap", "../cubemaps/sea-cubemap", 5);
+    renderer.loadCubemap("sea-cubemap", "../cubemaps/sea-cubemap", 5);
+  }
 
+  void loadShaders() {
     // renderer.loadShader("phong-pixel", "../shaders/phong-pixel.vs", "../shaders/phong-pixel.fs");
     // renderer.loadShader("texture", "../shaders/texture.vs", "../shaders/texture.fs");
     renderer.loadShader("cubemap", "../shaders/cubemap.vs", "../shaders/cubemap.fs");
+  }
 
+  void loadMeshes() {
     _poolTableMesh = PLYMesh("../models/pool-table.ply");
-    _cueStickMesh = PLYMesh("../models/cue-stick.ply");
-    // _poolTableMesh = PLYMesh("../models/cow.ply");
-
     _tableScaleVector = scaleVector(_poolTableMesh, "pool-table");
     _tableCenterVector = centerVector(_poolTableMesh, "pool-table");
 
+    _cueStickMesh = PLYMesh("../models/cue-stick.ply");
     _stickScaleVector = scaleVector(_cueStickMesh, "cue-stick");
     _stickCenterVector = centerVector(_cueStickMesh, "cue-stick");
-
-    createBalls();
   }
 
   vec3 scaleVector(PLYMesh mesh, string meshName) {
@@ -95,7 +111,7 @@ public:
     return vec3(-centroidX, -centroidY, -centroidZ);
   }
 
-  void createBalls()
+  void createPoolBalls()
   {
     for (int i = 0; i < _numBalls; i++) {
       Ball ball;
@@ -110,8 +126,22 @@ public:
       // ball.color.w = 1.0;
       ball.color = vec4(1.0);
       ball.size = _viewVolumeSide / 20;
+      ball.gravity = vec3(0, 0, -0.05);
       _balls.push_back(ball);
     }
+  }
+
+  void createTrajecBalls() {
+    for (int i = 0; i < 5; i++) {
+      Ball trajectoryBall;
+      trajectoryBall.pos = _balls[_activeBall].pos + ((1.0f / (i+1)) * _launchVel);
+      trajectoryBall.color = vec4(0.8);
+      trajectoryBall.size = 5 + (4 - i);
+      _trajectoryBalls.push_back(trajectoryBall);
+    }
+  }
+
+  void createHoles() {
     for (int i = 0; i < 6; i++) {
       vec3 hole;
       // hole.x = ((float(i % 3) / 2) * _tableLength) - (_tableLength / 2);
@@ -123,54 +153,97 @@ public:
     }
   }
 
-  void updateBalls()
+  void updatePoolBalls()
   {
-    std::vector<Ball> newBalls = _balls;
+    std::vector<Ball> newBalls;
     for (int i = 0; i < _numBalls; i++) {
       Ball ball = _balls[i];
-      Ball newBall = newBalls[i];
-      // collision detection
-      for (int j = 0; j < _numBalls; j++) {
-        Ball otherBall = _balls[j];
-        if (ball.id != otherBall.id && length(ball.pos - otherBall.pos) <= _viewVolumeSide / 20) {
-          newBall.vel = (otherBall.vel - ball.vel) / 2.0f;
-          break;
-        } 
-      }
-      newBall.pos += newBall.vel * dt();
-      // boundary detection
-      int xThresh = (_tableLength - 75) / 2;
-      if (newBall.pos.x < -xThresh || newBall.pos.x > xThresh) {
-        newBall.pos.x = (newBall.pos.x < -xThresh)? -xThresh : newBall.pos.x;
-        newBall.pos.x = (newBall.pos.x > xThresh)? xThresh : newBall.pos.x;
-        newBall.vel.x = -newBall.vel.x;
-      }
-      int yThresh = (_tableWidth - 75) / 2;
-      if (newBall.pos.y < -yThresh || newBall.pos.y > yThresh) {
-        newBall.pos.y = (newBall.pos.y < -yThresh)? -yThresh : newBall.pos.y;
-        newBall.pos.y = (newBall.pos.y > yThresh)? yThresh : newBall.pos.y;
-        newBall.vel.y = -newBall.vel.y;
-      }
-      for (int i = 0; i < 6; i++) {
-        if (length(_holes[i] - newBall.pos) < _viewVolumeSide / 100) {
-            newBall.pos.x = pow(-1, rand()) * (rand() % ((_tableLength - 100) / 2));
-            newBall.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
-            newBall.vel = vec3(0);
-            newBall.size = _viewVolumeSide / 20;
-        } else if (length(_holes[i] - newBall.pos) < _viewVolumeSide / 75) {
-            // newBall.vel += 0.1f * (_holes[i] - newBall.pos);
-            newBall.size -= 0.5;
-        } 
-      }
+      Ball newBall;
+      newBall = holeDetection(ball);
+      newBall = collisionDetection(newBall);
+      newBall.pos += (newBall.vel + newBall.gravity + _tableNormalForce) * dt();
+      newBall = boundaryDetection(newBall);
       // friction
       newBall.vel *= 0.99f;
       // cout << "pos: " << newBall.pos << "  vel: " << newBall.vel << endl;
-      newBalls[i] = newBall;
+      newBalls.push_back(newBall);
     }
     _balls = newBalls;
   }
 
-  void drawTable() {
+  Ball collisionDetection(Ball ball) {
+    for (int j = 0; j < _numBalls; j++) {
+      Ball otherBall = _balls[j];
+      if (ball.id != otherBall.id && length(ball.pos - otherBall.pos) <= (_sphereDefaultRadius * ball.size + _sphereDefaultRadius * otherBall.size)) {
+        ball.vel = (otherBall.vel - ball.vel) / 2.0f;
+        break;
+      } 
+    }
+    return ball;
+  }
+
+  Ball boundaryDetection(Ball ball) {
+    int ballRadius = _sphereDefaultRadius * ball.size;
+    int xThresh = (_tableLength - 75) / 2;
+    int ballLeft = ball.pos.x - ballRadius;
+    int ballRight = ball.pos.x + ballRadius;
+    if (ballLeft < -xThresh || ballRight > xThresh) {
+      ball.pos.x += (ballLeft < -xThresh)? -xThresh - ballLeft : 0;
+      ball.pos.x += (ballRight > xThresh)? xThresh - ballRight: 0;
+      ball.vel.x = _chaosEffectStatus["stickyWalls"]? 0 : -ball.vel.x;
+      ball.vel.y = _chaosEffectStatus["stickyWalls"]? 0 : ball.vel.y;
+    }
+    int yThresh = (_tableWidth - 75) / 2;
+    int ballBottom = ball.pos.y - ballRadius;
+    int ballTop = ball.pos.y + ballRadius;
+    if (ball.pos.y < -yThresh || ball.pos.y > yThresh) {
+      ball.pos.y += (ballBottom < -xThresh)? -yThresh - ballBottom : 0;
+      ball.pos.y += (ballTop > xThresh)? yThresh - ballTop: 0;
+      ball.vel.y = _chaosEffectStatus["stickyWalls"]? 0 : -ball.vel.y;
+      ball.vel.x = _chaosEffectStatus["stickyWalls"]? 0 : ball.vel.x;
+    }
+    return ball;
+  }
+
+  Ball holeDetection(Ball ball) {
+    for (int i = 0; i < 6; i++) {
+      if (length(_holes[i] - ball.pos) < _viewVolumeSide / 100) {
+          ball.pos.x = pow(-1, rand()) * (rand() % ((_tableLength - 100) / 2));
+          ball.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
+          ball.vel = vec3(0);
+          ball.size = _viewVolumeSide / 20;
+      } else if (length(_holes[i] - ball.pos) < _viewVolumeSide / 75) {
+          // ball.vel += 0.1f * (_holes[i] - ball.pos);
+          ball.size -= 0.5;
+      } 
+    }
+    return ball;
+  }
+
+  int launchDetection(int x, int y) {
+    float closestDist = 99999999;
+    float closestDistIdx = -1;
+    int clickX = x - (_width / 2);
+    int clickY = -(y - (_height / 2));
+    cout << "click pos: " << clickX << " " << clickY << endl;
+    for (int i = 0; i < _numBalls; i++) {
+      vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[i].pos, 1.0);
+      vec2 ballScreenPos = vec2(ballEyePos.x, ballEyePos.y);
+      // cout << i << ") " << screenPos << " vs " << clickX << " " << clickY << " dist: " << length(screenPos - vec2(clickX, clickY)) << endl;
+      if (length(ballScreenPos - vec2(clickX, clickY)) < 30) {
+        cout << "threshold crossed" << endl;
+        float dist = length(ballScreenPos - vec2(clickX, clickY));
+        if (dist < closestDist) {
+          closestDist = dist;
+          closestDistIdx = i;
+          _launching = true;
+        }
+      } 
+    }
+    cout << endl;
+    return closestDistIdx;
+  }
+  void drawPoolTable() {
     renderer.setUniform("materialColor", vec4(1));
     renderer.setUniform("poolBall", false);
     renderer.texture("image", "pool-table");
@@ -209,8 +282,7 @@ public:
     }
   }
 
-  void drawBalls()
-  {
+  void drawPoolBalls() {
     for (int i = 0; i < _numBalls; i++)
     {
       renderer.setUniform("materialColor", _balls[i].color);
@@ -228,10 +300,11 @@ public:
       // vec2 screenPos = vec2(eyePos.x, eyePos.y);
       // renderer.text(to_string(_balls[i].id), screenPos.x + (_height / 2), _width - (screenPos.y + (_width / 2)));
     }
+  }
 
+  void drawTrajectoryBalls() {
     if (_launching) {
-      renderer.texture("image", "trajectoryBall");
-      
+      renderer.texture("image", "trajectoryBall");  
       renderer.setDepthTest(false);
       renderer.blendMode(agl::ADD);
       renderer.beginShader("sprite");
@@ -242,7 +315,69 @@ public:
       }
       renderer.endShader();
       renderer.setDepthTest(true);
-      renderer.blendMode(agl::DEFAULT);
+      renderer.blendMode(agl::DEFAULT);   
+    }
+  }
+
+  void chaos() {
+    int newEffectThresh = std::max(300, rand() % 450);
+    if (int((elapsedTime() + 1) / dt()) % newEffectThresh == 0) {
+      string effect = _chaosEffects[rand() % _chaosEffects.size()];
+      for (auto it = _chaosEffectStatus.begin(); it != _chaosEffectStatus.end(); it++) {
+        if (it->first == effect) {
+          if (it->second == false) {
+            cout << "activating chaos effect: " << it->first << endl;
+            _chaosEffectStatus[it->first] = true;
+            if (effect == "gravity") {
+              gravityChaos();
+            } else if (effect == "randomEnlarge") {
+              sizeChaos();
+            }
+          }
+        } else {
+          if (it->second == true) {
+            cout << "deactivating chaos effect: " << it->first << endl;
+            _chaosEffectStatus[it->first] = false;
+            if (effect == "gravity") {
+              resetGravity();
+            } else if (effect == "randomEnlarge") {
+              resetSize();
+            }
+          }
+        }
+      }
+    }
+  }
+
+  void gravityChaos() {
+    for (int i = 0; i < _numBalls; i++) {
+      if (rand() % 4 == 0) {
+        _balls[i].gravity.z += 125 + (rand() % 50);
+      }
+    }
+  }
+
+  void resetGravity() {
+    for (int i = 0; i < _numBalls; i++) {
+      _balls[i].gravity.z = -0.05f;
+    }
+  }
+
+  void sizeChaos() {
+    for (int i = 0; i < _numBalls; i++) {
+      if (rand() % 4 == 0) {
+        float prevSize = _balls[i].size;
+        _balls[i].size *= 3;
+        _balls[i].pos.z += _sphereDefaultRadius * (_balls[i].size - prevSize);
+      }
+    }
+  }
+
+  void resetSize() {
+    for (int i = 0; i < _numBalls; i++) {
+      float prevSize = _balls[i].size;
+      _balls[i].size = _viewVolumeSide / 20;
+      _balls[i].pos.z += _sphereDefaultRadius * (_balls[i].size - prevSize);
     }
   }
 
@@ -279,26 +414,7 @@ public:
           _trajectoryBalls[i].pos = _balls[_activeBall].pos + ((1.0f / (i+1)) * _launchVel);
         }
       } else if (!_orbiting) {
-        float closestDist = 99999999;
-        float closestDistIdx = -1;
-        int clickX = x - (_width / 2);
-        int clickY = -(y - (_height / 2));
-        cout << "click pos: " << clickX << " " << clickY << endl;
-        for (int i = 0; i < _numBalls; i++) {
-          vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[i].pos, 1.0);
-          vec2 ballScreenPos = vec2(ballEyePos.x, ballEyePos.y);
-          // cout << i << ") " << screenPos << " vs " << clickX << " " << clickY << " dist: " << length(screenPos - vec2(clickX, clickY)) << endl;
-          if (length(ballScreenPos - vec2(clickX, clickY)) < 30) {
-            cout << "threshold crossed" << endl;
-            float dist = length(ballScreenPos - vec2(clickX, clickY));
-            if (dist < closestDist) {
-              closestDist = dist;
-              closestDistIdx = i;
-              _launching = true;
-            }
-          } 
-        }
-        cout << endl;
+        int closestDistIdx = launchDetection(x, y);
         if (_launching) {
           _activeBall = closestDistIdx;
           // cout << "1) active ball: " << _activeBall << "  launchVel: " << _launchVel << endl;
@@ -308,32 +424,30 @@ public:
           // vec4 launchVel = renderer.viewMatrix() * vec4(-dx, dy, 0, 0);
           // _launchVel = vec3(launchVel.x, launchVel.y, launchVel.z);
           // cout << _launchVel << endl;
-          for (int i = 0; i < 5; i++) {
-            Ball trajectoryBall;
-            trajectoryBall.pos = _balls[_activeBall].pos + ((1.0f / (i+1)) * _launchVel);
-            trajectoryBall.color = vec4(0.8);
-            trajectoryBall.size = 5 + (4 - i);
-            _trajectoryBalls.push_back(trajectoryBall);
-          }
+          createTrajecBalls();
         } else {
           _orbiting = true;
         }
       }
       if (_orbiting) {
-        float ONE_DEG = 0.017;
-        _elevation += dy * (M_PI / 180);
-        if (_elevation > (M_PI_2) - ONE_DEG) {
-           _elevation = (M_PI_2) - ONE_DEG;
-        } else if (_elevation < -((M_PI_2) - ONE_DEG)) {
-           _elevation = -((M_PI_2) - ONE_DEG);
-        }
-        _azimuth -= dx * (M_PI / 180);
-        if (_azimuth > 2 * M_PI) {
-           _azimuth = 0;
-        } else if (_azimuth < 0) {
-           _azimuth = 2 * M_PI;
-        }
+        pan(dx, dy);
       }
+    }
+  }
+
+  void pan(float dx, float dy) {
+    float ONE_DEG = 0.017;
+    _elevation += dy * (M_PI / 180);
+    if (_elevation > (M_PI_2) - ONE_DEG) {
+       _elevation = (M_PI_2) - ONE_DEG;
+    } else if (_elevation < -((M_PI_2) - ONE_DEG)) {
+       _elevation = -((M_PI_2) - ONE_DEG);
+    }
+    _azimuth -= dx * (M_PI / 180);
+    if (_azimuth > 2 * M_PI) {
+       _azimuth = 0;
+    } else if (_azimuth < 0) {
+       _azimuth = 2 * M_PI;
     }
   }
 
@@ -390,22 +504,28 @@ public:
 
     _lightPos = updatePos(M_PI_4);
 
+    chaos();
+   
     // renderer.beginShader("phong-pixel");
     renderer.beginShader("cubemap");
     renderer.push();
-    renderer.rotate(vec3(-M_PI_2, 0, 0));
+    // renderer.rotate(vec3(-M_PI_2, 0, 0));
     setupReflections();
-    drawTable();
+    drawPoolTable();
     drawCueStick();
-    updateBalls();
-    drawBalls();
+    updatePoolBalls();
+    drawPoolBalls();
+    drawTrajectoryBalls();
     renderer.pop();
+
+    renderer.push();
+    renderer.rotate(vec3(-M_PI_2, 0, 0));
     renderer.setUniform("ModelMatrix", renderer.modelMatrix());
-    // renderer.cubemap("cubemap", "sea-cubemap");
-    renderer.cubemap("cubemap", "colorful-studio");
+    renderer.cubemap("cubemap", "sea-cubemap");
     renderer.setUniform("skybox", true);
     renderer.skybox(_viewVolumeSide * 5);
     renderer.setUniform("skybox", false);
+    renderer.pop();
     renderer.endShader();
     // renderer.endShader();
 
@@ -437,6 +557,7 @@ protected:
   std::vector<vec3> _holes;
   int _activeBall;
   vec3 _launchVel;
+  float _sphereDefaultRadius = 0.5;
 
   vec3 _lightPos = vec3(_viewVolumeSide, _viewVolumeSide, _viewVolumeSide);
   vec3 _lightColor = vec3(1.0, 1.0, 1.0);
@@ -445,6 +566,7 @@ protected:
   float _orbiting = false;
   int _tableLength;
   int _tableWidth;
+  vec3 _tableNormalForce = vec3(0, 0, 0.05);
 
   PLYMesh _poolTableMesh;
   PLYMesh _cueStickMesh;
@@ -452,6 +574,8 @@ protected:
   vec3 _stickScaleVector;
   vec3 _tableCenterVector;
   vec3 _stickCenterVector;
+  vector<string> _chaosEffects = {"stickyWalls", "gravity", "randomEnlarge"};
+  map<string, bool> _chaosEffectStatus;
   int _stickLength;
 };
 
