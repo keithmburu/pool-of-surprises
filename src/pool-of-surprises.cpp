@@ -25,7 +25,7 @@ struct Ball {
   glm::vec3 vel;
   glm::vec4 color;
   float size;
-  vec3 gravity;
+  // vec3 gravity;
 };
 
 class Viewer : public Window {
@@ -60,6 +60,7 @@ public:
     renderer.loadTexture("pool-table", "../textures/pool-table/PoolTable_poolTable_BaseColor.png", 0);
     renderer.loadTexture("pool-table-normal", "../textures/pool-table/PoolTable_poolTable_Normal.png", 1);
     renderer.loadTexture("cue-stick", "../textures/cue-stick/Cue_diff.png", 0);
+    renderer.loadTexture("explosion", "../textures/sprite-sheets/explosion.png", 0);
   }
 
   void loadCubemaps() {
@@ -73,6 +74,9 @@ public:
     // renderer.loadShader("phong-pixel", "../shaders/phong-pixel.vs", "../shaders/phong-pixel.fs");
     // renderer.loadShader("texture", "../shaders/texture.vs", "../shaders/texture.fs");
     renderer.loadShader("cubemap", "../shaders/cubemap.vs", "../shaders/cubemap.fs");
+    renderer.loadShader("billboard-animated", 
+      "../shaders/billboard-animated.vs", 
+      "../shaders/billboard-animated.fs");
   }
 
   void loadMeshes() {
@@ -118,15 +122,14 @@ public:
       ball.id = i;
       ball.pos.x = pow(-1, rand()) * (rand() % ((_tableLength - 100) / 2));
       ball.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
-      // ball.vel = vec3(random(-0.005, 0.005), random(-0.005, 0.005), 0);
+      // ball.pos.x = (float(i + 1) / _numBalls) * (_tableLength - 100);
+      // ball.pos.x -= _tableLength / 2 - 50;
+      // ball.pos.y = (float(i + 1) / _numBalls) * (_tableWidth - 100);  
+      // ball.pos.y -= _tableWidth / 2 - 50;
       ball.vel = vec3(0);
-      // ball.color.x = std::max(rand() % 256, 64) / 255.0f;
-      // ball.color.y = std::max(rand() % 256, 64) / 255.0f;
-      // ball.color.z = std::max(rand() % 256, 64) / 255.0f;
-      // ball.color.w = 1.0;
       ball.color = vec4(1.0);
       ball.size = _viewVolumeSide / 20;
-      ball.gravity = vec3(0, 0, -0.05);
+      // ball.gravity = vec3(0, 0, -0.05);
       _balls.push_back(ball);
     }
   }
@@ -161,10 +164,11 @@ public:
       Ball newBall;
       newBall = holeDetection(ball);
       newBall = collisionDetection(newBall);
-      newBall.pos += (newBall.vel + newBall.gravity + _tableNormalForce) * dt();
+      newBall.pos += newBall.vel * dt();
+      if (_chaosEffectStatus["tiltedTable"]) newBall.pos += vec3(10, 0, 0) * dt();
       newBall = boundaryDetection(newBall);
       // friction
-      newBall.vel *= 0.99f;
+      newBall.vel *= _chaosEffectStatus["moreFriction"]? 0.8f : 0.99f;
       // cout << "pos: " << newBall.pos << "  vel: " << newBall.vel << endl;
       newBalls.push_back(newBall);
     }
@@ -175,6 +179,10 @@ public:
     for (int j = 0; j < _numBalls; j++) {
       Ball otherBall = _balls[j];
       if (ball.id != otherBall.id && length(ball.pos - otherBall.pos) <= (_sphereDefaultRadius * ball.size + _sphereDefaultRadius * otherBall.size)) {
+        // ball.pos += std::min<float>(_sphereDefaultRadius * ball.size, (ball.pos - otherBall.pos) / 2.0f);
+        // ball.pos += (ball.pos - otherBall.pos) * (ball.size / (ball.size + otherBall.size));
+        float overlap = (_sphereDefaultRadius * ball.size + _sphereDefaultRadius * otherBall.size) - length(ball.pos - otherBall.pos);
+        ball.pos += normalize(ball.pos - otherBall.pos) * overlap / 2.0f;
         ball.vel = (otherBall.vel - ball.vel) / 2.0f;
         break;
       } 
@@ -320,17 +328,28 @@ public:
   }
 
   void chaos() {
+    if (_chaosEffectStatus["floatingBalls"]) {
+      for (int i = 0; i < _numBalls; i++) {
+        if (_balls[i].pos.z >= 49) {
+          _balls[i].pos.z = 50.0f + 10 * sin(elapsedTime());
+        }
+      }
+    } 
+
     int newEffectThresh = std::max(300, rand() % 450);
     if (int((elapsedTime() + 1) / dt()) % newEffectThresh == 0) {
+      _chaosAnimStartTime = elapsedTime() + 1;
+      _chaosAnimation = true;
       string effect = _chaosEffects[rand() % _chaosEffects.size()];
       for (auto it = _chaosEffectStatus.begin(); it != _chaosEffectStatus.end(); it++) {
         if (it->first == effect) {
           if (it->second == false) {
             cout << "activating chaos effect: " << it->first << endl;
             _chaosEffectStatus[it->first] = true;
-            if (effect == "gravity") {
+            _activeChaosEffect = effect;
+            if (effect == "floatingBalls") {
               gravityChaos();
-            } else if (effect == "randomEnlarge") {
+            } else if (effect == "largeBalls") {
               sizeChaos();
             }
           }
@@ -338,28 +357,35 @@ public:
           if (it->second == true) {
             cout << "deactivating chaos effect: " << it->first << endl;
             _chaosEffectStatus[it->first] = false;
-            if (effect == "gravity") {
+            if (it->first == "floatingBalls") {
               resetGravity();
-            } else if (effect == "randomEnlarge") {
+            } else if (it->first == "largeBalls") {
               resetSize();
             }
           }
         }
       }
     }
+    // cout << "|" << elapsedTime() - _chaosAnimStartTime << "|";
+    if (elapsedTime() - _chaosAnimStartTime > 3) {
+      _chaosAnimation = false;
+    } else {
+      renderer.text(_activeChaosEffect + " activated!", 125, 150);
+    }
   }
 
   void gravityChaos() {
     for (int i = 0; i < _numBalls; i++) {
       if (rand() % 4 == 0) {
-        _balls[i].gravity.z += 125 + (rand() % 50);
+        _balls[i].pos.z = 50.0f + 10 * sin(elapsedTime());
       }
     }
   }
 
   void resetGravity() {
     for (int i = 0; i < _numBalls; i++) {
-      _balls[i].gravity.z = -0.05f;
+      // _balls[i].gravity.z = -0.05f;
+      _balls[i].pos.z = 0;
     }
   }
 
@@ -462,7 +488,11 @@ public:
       _leftClick = false;
       if (_launching) {
         // cout << "2) active ball: " << _activeBall << "  launchVel: " << _launchVel << endl;
-        _balls[_activeBall].vel = _launchVel;
+        if (_chaosEffectStatus["invertedLaunch"]) {
+          _balls[_activeBall].vel = vec3(_launchVel.x, -_launchVel.y, _launchVel.z);
+        } else {
+          _balls[_activeBall].vel = _launchVel;
+        }
         _balls[_activeBall].color *= 2.0f;
         _launching = false;
         _trajectoryBalls.clear();
@@ -504,11 +534,30 @@ public:
 
     _lightPos = updatePos(M_PI_4);
 
-    chaos();
-   
-    // renderer.beginShader("phong-pixel");
     renderer.beginShader("cubemap");
+
     renderer.push();
+
+    // cout << _chaosAnimation;
+    if (_chaosAnimation) {
+      renderer.setDepthTest(false);
+      renderer.blendMode(agl::ADD);
+      renderer.beginShader("billboard-animated");
+      renderer.texture("image", "explosion");
+      _time += dt();
+      int numRows = 8;
+      int numCols = 16;
+      int frame = int(_time * 30) % (numRows * numCols);
+      renderer.setUniform("Frame", frame);
+      renderer.setUniform("Rows", numRows);
+      renderer.setUniform("Cols", numCols);
+      renderer.setUniform("TopToBottom", false);
+      renderer.sprite(vec3(0, 0, 100), vec4(1.0f), 250.0);
+      renderer.endShader();
+      renderer.setDepthTest(true);
+      renderer.blendMode(agl::DEFAULT);
+    }
+
     // renderer.rotate(vec3(-M_PI_2, 0, 0));
     setupReflections();
     drawPoolTable();
@@ -516,6 +565,7 @@ public:
     updatePoolBalls();
     drawPoolBalls();
     drawTrajectoryBalls();
+    chaos();
     renderer.pop();
 
     renderer.push();
@@ -526,8 +576,11 @@ public:
     renderer.skybox(_viewVolumeSide * 5);
     renderer.setUniform("skybox", false);
     renderer.pop();
+
     renderer.endShader();
-    // renderer.endShader();
+
+    // renderer.texture("fontTexture", "explosion");
+    // renderer.text(" activated!", 125, 150);
 
     // renderer.beginShader("cubemap");
     // // renderer.cubemap("cubemap", "sea-cubemap");
@@ -539,16 +592,23 @@ public:
 
 protected:
 
+  int _width;
+  int _height;
   int _viewVolumeSide;
+  int _radius;
+  float _sphereDefaultRadius = 0.5;
+
   vec3 _camPos = vec3(0, 0, _viewVolumeSide);
   vec3 _lookPos = vec3(0, 0, 0);
   vec3 _up = vec3(0, 1, 0);
+  float _azimuth = 0;
+  float _elevation = 0;
+  float _orbiting = false;
+  vec3 _lightPos = vec3(_viewVolumeSide, _viewVolumeSide, _viewVolumeSide);
+  vec3 _lightColor = vec3(1.0, 1.0, 1.0);
 
   std::vector<Ball> _balls;
   int _numBalls = 16;
-  int _width;
-  int _height;
-  int _radius;
 
   bool _leftClick = false;
   bool _launching = false;
@@ -557,26 +617,26 @@ protected:
   std::vector<vec3> _holes;
   int _activeBall;
   vec3 _launchVel;
-  float _sphereDefaultRadius = 0.5;
 
-  vec3 _lightPos = vec3(_viewVolumeSide, _viewVolumeSide, _viewVolumeSide);
-  vec3 _lightColor = vec3(1.0, 1.0, 1.0);
-  float _azimuth = 0;
-  float _elevation = 0;
-  float _orbiting = false;
-  int _tableLength;
-  int _tableWidth;
-  vec3 _tableNormalForce = vec3(0, 0, 0.05);
+  // vec3 _tableNormalForce = vec3(0, 0, 0.05);
 
   PLYMesh _poolTableMesh;
-  PLYMesh _cueStickMesh;
+  int _tableLength;
+  int _tableWidth;
   vec3 _tableScaleVector;
-  vec3 _stickScaleVector;
   vec3 _tableCenterVector;
-  vec3 _stickCenterVector;
-  vector<string> _chaosEffects = {"stickyWalls", "gravity", "randomEnlarge"};
-  map<string, bool> _chaosEffectStatus;
+  PLYMesh _cueStickMesh;
   int _stickLength;
+  vec3 _stickScaleVector;
+  vec3 _stickCenterVector;
+  
+  vector<string> _chaosEffects = {"vanilla", "stickyWalls", "floatingBalls", "largeBalls", "moreFriction", "tiltedTable", "invertedLaunch"};
+  map<string, bool> _chaosEffectStatus;
+  string _activeChaosEffect;
+  float _time = 0.0f;
+  bool _chaosAnimation = false;
+  float _chaosAnimStartTime = 9999;
+
 };
 
 int main(int argc, char** argv)
