@@ -81,3 +81,5 @@ particles/build $ ../bin/explosion
 
 - "Cue stick (LP)" (https://skfb.ly/6ASFq) by afferu is licensed under Creative Commons Attribution-ShareAlike (http://creativecommons.org/licenses/by-sa/4.0/).
 
+- "Eye" (https://skfb.ly/RJG7) by germydan is licensed under Creative Commons Attribution (http://creativecommons.org/licenses/by/4.0/).
+
