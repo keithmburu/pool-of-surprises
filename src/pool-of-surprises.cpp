@@ -68,6 +68,7 @@ public:
     renderer.loadTexture("cue-stick", "../textures/cue-stick/Cue_diff.png", 0);
     renderer.loadTexture("explosion", "../textures/sprite-sheets/explosion.png", 0);
     renderer.loadTexture("eye", "../textures/eye-of-sauron/eye.jpg", 0);
+    renderer.loadTexture("logo", "../textures/pool-of-surprises-logo.png", 0);
   }
 
   void loadCubemaps()
@@ -82,12 +83,11 @@ public:
   void loadShaders()
   {
     // renderer.loadShader("phong-pixel", "../shaders/phong-pixel.vs", "../shaders/phong-pixel.fs");
-    // renderer.loadShader("texture", "../shaders/texture.vs", "../shaders/texture.fs");
+    renderer.loadShader("texture", "../shaders/texture.vs", "../shaders/texture.fs");
     renderer.loadShader("cubemap", "../shaders/cubemap.vs", "../shaders/cubemap.fs");
-    renderer.loadShader("billboard-animated",
-                        "../shaders/billboard-animated.vs",
-                        "../shaders/billboard-animated.fs");
-    renderer.loadShader("test", "../shaders/test.vs", "../shaders/test.fs");
+    renderer.loadShader("billboard-animated", "../shaders/billboard-animated.vs", "../shaders/billboard-animated.fs");
+    renderer.loadShader("fluid", "../shaders/fluid.vs", "../shaders/fluid.fs");
+    renderer.loadShader("billboard", "../shaders/billboard.vs", "../shaders/billboard.fs");
   }
 
   void loadMeshes()
@@ -176,12 +176,10 @@ public:
     for (int i = 0; i < 6; i++)
     {
       vec3 hole;
-      // hole.x = ((float(i % 3) / 2) * _tableLength) - (_tableLength / 2);
       hole.x = (i % 3) == 0 ? -(_tableLength / 2) + 50 : (i % 3) == 1 ? 0
                                                                       : (_tableLength / 2) - 50;
       hole.y = (i < 3) ? (_tableWidth / 2) - 50 : -(_tableWidth / 2) + 50;
       hole.z = 0;
-      // cout << hole << endl;
       _holes.push_back(hole);
     }
   }
@@ -196,12 +194,11 @@ public:
       newBall = holeDetection(ball);
       newBall = collisionDetection(newBall);
       newBall.pos += newBall.vel * dt();
-      if (_chaosEffectStatus["tiltedTable"])
+      if (_chaosEffectStatus["Tilt-a-Table"])
         newBall.pos += vec3(10, 0, 0) * dt();
       newBall = boundaryDetection(newBall);
       // friction
-      newBall.vel *= _chaosEffectStatus["moreFriction"] ? 0.8f : 0.99f;
-      // cout << "pos: " << newBall.pos << "  vel: " << newBall.vel << endl;
+      newBall.vel *= _chaosEffectStatus["Friction Affliction"] ? 0.8f : 0.99f;
       newBalls.push_back(newBall);
     }
     _balls = newBalls;
@@ -214,12 +211,12 @@ public:
       Ball otherBall = _balls[j];
       if (ball.id != otherBall.id && length(ball.pos - otherBall.pos) <= (_sphereDefaultRadius * ball.size + _sphereDefaultRadius * otherBall.size))
       {
-        // ball.pos += std::min<float>(_sphereDefaultRadius * ball.size, (ball.pos - otherBall.pos) / 2.0f);
-        // ball.pos += (ball.pos - otherBall.pos) * (ball.size / (ball.size + otherBall.size));
         float overlap = (_sphereDefaultRadius * ball.size + _sphereDefaultRadius * otherBall.size) - length(ball.pos - otherBall.pos);
         ball.pos += normalize(ball.pos - otherBall.pos) * overlap / 2.0f;
         ball.vel = (otherBall.vel - ball.vel) / 2.0f;
-        break;
+        // if (length(otherBall.vel) != 0) ball.vel = otherBall.vel;
+        // else ball.vel = vec3(ball.vel.x, ball.vel.x, 1.0);
+        // break;
       }
     }
     return ball;
@@ -235,8 +232,8 @@ public:
     {
       ball.pos.x += (ballLeft < -xThresh) ? -xThresh - ballLeft : 0;
       ball.pos.x += (ballRight > xThresh) ? xThresh - ballRight : 0;
-      ball.vel.x = _chaosEffectStatus["stickyWalls"] ? 0 : -ball.vel.x;
-      ball.vel.y = _chaosEffectStatus["stickyWalls"] ? 0 : ball.vel.y;
+      ball.vel.x = _chaosEffectStatus["Sticky Situation"] ? 0 : -ball.vel.x;
+      ball.vel.y = _chaosEffectStatus["Sticky Situation"] ? 0 : ball.vel.y;
     }
     int yThresh = (_tableWidth - 75) / 2;
     int ballBottom = ball.pos.y - ballRadius;
@@ -245,8 +242,8 @@ public:
     {
       ball.pos.y += (ballBottom < -xThresh) ? -yThresh - ballBottom : 0;
       ball.pos.y += (ballTop > xThresh) ? yThresh - ballTop : 0;
-      ball.vel.y = _chaosEffectStatus["stickyWalls"] ? 0 : -ball.vel.y;
-      ball.vel.x = _chaosEffectStatus["stickyWalls"] ? 0 : ball.vel.x;
+      ball.vel.y = _chaosEffectStatus["Sticky Situation"] ? 0 : -ball.vel.y;
+      ball.vel.x = _chaosEffectStatus["Sticky Situation"] ? 0 : ball.vel.x;
     }
     return ball;
   }
@@ -257,10 +254,9 @@ public:
     {
       if (length(_holes[i] - ball.pos) < _viewVolumeSide / 100)
       {
-        ball.pos.x = pow(-1, rand()) * (rand() % ((_tableLength - 100) / 2));
-        ball.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
-        ball.vel = vec3(0);
-        ball.size = _viewVolumeSide / 20;
+        renderer.text(congratsMessages[ball.id], -congratsMessages[ball.id].size(), 250);
+        ball.pos = vec3(1000);
+        _eyeDiameterModifier += 0.025;
       }
       else if (length(_holes[i] - ball.pos) < _viewVolumeSide / 75)
       {
@@ -299,8 +295,8 @@ public:
 
   void drawPoolTable()
   {
-    renderer.setUniform("materialColor", vec4(1));
-    renderer.texture("image", "pool-table");
+    renderer.setUniform("MaterialColor", vec4(1));
+    renderer.texture("Image", "pool-table");
     // renderer.texture("bumpMap", "pool-table-normal");
     renderer.push();
     // center table, align it horizontally, and scale to fit view volume
@@ -317,8 +313,8 @@ public:
   {
     if (_launching)
     {
-      renderer.setUniform("materialColor", vec4(1));
-      renderer.texture("image", "cue-stick");
+      renderer.setUniform("MaterialColor", vec4(1));
+      renderer.texture("Image", "cue-stick");
       renderer.push();
       // center cue stick, align it horizontally, and scale to fit view volume
       renderer.translate(-_launchVel * 0.2f);
@@ -339,11 +335,11 @@ public:
 
   void drawPoolBalls()
   {
-    renderer.setUniform("poolBall", true);
+    renderer.setUniform("PoolBall", true);
     for (int i = 0; i < _numBalls; i++)
     {
-      renderer.setUniform("materialColor", _balls[i].color);
-      renderer.texture("image", "ball_" + to_string(i + 1));
+      renderer.setUniform("MaterialColor", _balls[i].color);
+      renderer.texture("Image", "ball_" + to_string(i + 1));
       renderer.push();
       renderer.translate(_balls[i].pos);
       renderer.rotate(vec3(0, M_PI_2, M_PI_2));
@@ -355,14 +351,14 @@ public:
       // vec2 screenPos = vec2(eyePos.x, eyePos.y);
       // renderer.text(to_string(_balls[i].id), screenPos.x + (_height / 2), _width - (screenPos.y + (_width / 2)));
     }
-    renderer.setUniform("poolBall", false);
+    renderer.setUniform("PoolBall", false);
   }
 
   void drawTrajectoryBalls()
   {
     if (_launching)
     {
-      renderer.texture("image", "trajectoryBall");
+      renderer.texture("Image", "trajectoryBall");
       renderer.setDepthTest(false);
       renderer.blendMode(agl::ADD);
       renderer.beginShader("sprite");
@@ -379,9 +375,9 @@ public:
 
   void drawEye()
   {
-    renderer.setUniform("materialColor", vec4(1));
-    renderer.setUniform("eyeOfSauron", true);
-    renderer.texture("image", "eye");
+    renderer.setUniform("MaterialColor", vec4(1));
+    renderer.setUniform("EyeOfSauron", true);
+    renderer.texture("Image", "eye");
     renderer.push();
     renderer.translate(vec3(0, 0, 200));
     vec3 n;
@@ -409,17 +405,17 @@ public:
     mat3 R_x = mat3(x1, y1, z1);
     renderer.rotate(R_x);
     renderer.rotate(vec3(0, M_PI_2, 0));
-    renderer.scale(vec3(0.25));
+    renderer.scale(vec3(_eyeDiameterModifier));
     renderer.scale(_eyeScaleVector);
     renderer.translate(_eyeCenterVector);
     renderer.mesh(_eyeMesh);
     renderer.pop();
-    renderer.setUniform("eyeOfSauron", false);
+    renderer.setUniform("EyeOfSauron", false);
   }
 
   void chaos()
   {
-    if (_chaosEffectStatus["floatingBalls"])
+    if (_chaosEffectStatus["Hover Havoc"])
     {
       for (int i = 0; i < _numBalls; i++)
       {
@@ -444,13 +440,14 @@ public:
           if (it->second == false)
           {
             cout << "activating chaos effect: " << it->first << endl;
+            renderer.text(effect + " activated!", -(effect.size() + 11) / 2, 250);
             _chaosEffectStatus[it->first] = true;
             _activeChaosEffect = effect;
-            if (effect == "floatingBalls")
+            if (effect == "Hover Havoc")
             {
               gravityChaos();
             }
-            else if (effect == "largeBalls")
+            else if (effect == "Biggie Smalls")
             {
               sizeChaos();
             }
@@ -462,11 +459,11 @@ public:
           {
             cout << "deactivating chaos effect: " << it->first << endl;
             _chaosEffectStatus[it->first] = false;
-            if (it->first == "floatingBalls")
+            if (it->first == "Hover Havoc")
             {
               resetGravity();
             }
-            else if (it->first == "largeBalls")
+            else if (it->first == "Biggie Smalls")
             {
               resetSize();
             }
@@ -511,7 +508,7 @@ public:
       if (rand() % 4 == 0)
       {
         float prevSize = _balls[i].size;
-        _balls[i].size *= 3;
+        (rand() % 2)? _balls[i].size *= 3 : _balls[i].size /= 3; 
         _balls[i].pos.z += _sphereDefaultRadius * (_balls[i].size - prevSize);
       }
     }
@@ -527,19 +524,61 @@ public:
     }
   }
 
+  void drawTransition() {
+    renderer.setDepthTest(false);
+    renderer.blendMode(agl::ADD);
+    renderer.beginShader("billboard-animated");
+    renderer.texture("Image", "explosion");
+    int numRows = 8;
+    int numCols = 16;
+    int frame = int(_time * 30) % (numRows * numCols);
+    renderer.setUniform("Frame", frame);
+    renderer.setUniform("Rows", numRows);
+    renderer.setUniform("Cols", numCols);
+    renderer.setUniform("TopToBottom", false);
+    renderer.sprite(vec3(0, -250, 100), vec4(1.0f), 250.0);
+    renderer.endShader();
+    renderer.setDepthTest(true);
+    renderer.blendMode(agl::DEFAULT);
+  }
+
+  void drawLogo() {
+    renderer.push();
+    renderer.setDepthTest(false);
+    renderer.blendMode(agl::ADD);
+    renderer.beginShader("texture");
+    renderer.texture("Image", "logo");
+    // renderer.sprite(vec3(-100, -100, 200), vec4(1.0f), 150.0);
+    renderer.translate(vec3(-175, -125, 125));
+    vec3 n = normalize(_camPos - vec3(-175, -125, 125));
+    float thetaX = atan2(n.z, -n.y) - M_PI_2;
+    vec3 x1 = vec3(1, 0, 0);
+    vec3 y1 = vec3(0, cos(thetaX), -sin(thetaX));
+    vec3 z1 = vec3(0, sin(thetaX), cos(thetaX));
+    mat3 R_x = mat3(x1, y1, z1);
+    renderer.rotate(R_x);
+    // renderer.rotate(vec3(0, M_PI_2, 0));
+    renderer.scale(vec3(_viewVolumeSide / 4));
+    renderer.quad();
+    renderer.endShader();
+    renderer.setDepthTest(true);
+    renderer.blendMode(agl::DEFAULT);
+    renderer.pop();
+  }
+
   void setupReflections()
   {
     renderer.setUniform("ViewMatrix", renderer.viewMatrix());
     renderer.setUniform("ProjMatrix", renderer.projectionMatrix());
-    renderer.setUniform("lightPos", _lightPos);
-    renderer.setUniform("lightColor", _lightColor.x, _lightColor.y, _lightColor.z);
-    renderer.setUniform("eyePos", _camPos);
+    renderer.setUniform("LightPos", _lightPos);
+    renderer.setUniform("LightColor", _lightColor.x, _lightColor.y, _lightColor.z);
+    renderer.setUniform("EyePos", _camPos);
     float ka = 0.1, kd = 0.7, ks = 0.6;
     float phongExp = 50.0;
-    renderer.setUniform("ka", ka);
-    renderer.setUniform("kd", kd);
-    renderer.setUniform("ks", ks);
-    renderer.setUniform("phongExp", phongExp);
+    renderer.setUniform("Ka", ka);
+    renderer.setUniform("Kd", kd);
+    renderer.setUniform("Ks", ks);
+    renderer.setUniform("PhongExp", phongExp);
   }
 
   vec3 updatePos(float offset)
@@ -566,7 +605,7 @@ public:
       {
         int clickX = x - (_width / 2);
         int clickY = -(y - (_height / 2));
-        renderer.setUniform("mousePos", vec2(x, y));
+        renderer.setUniform("MousePos", vec2(x, y));
         int closestDistIdx = launchDetection(clickX, clickY);
         if (_launching)
         {
@@ -626,7 +665,7 @@ public:
       _leftClick = false;
       if (_launching)
       {
-        if (_chaosEffectStatus["invertedLaunch"])
+        if (_chaosEffectStatus["Get Gaslit"])
         {
           _balls[_activeBall].vel = vec3(_launchVel.x, -_launchVel.y, _launchVel.z);
         }
@@ -693,13 +732,17 @@ public:
     renderer.push();
 
     _time += dt();
-    
-    renderer.beginShader("test");
-    renderer.setUniform("width", float(_width));
-    renderer.setUniform("height", float(_height));
-    renderer.setUniform("time", elapsedTime());
+
+    setupReflections();
+    drawPoolTable();
+
+    renderer.setDepthTest(false);
+    renderer.blendMode(agl::ADD);
+    renderer.beginShader("fluid");
+    renderer.setUniform("Resolution", vec2(width(), height()));
+    renderer.setUniform("Time", elapsedTime());
     vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[_activeBall].pos, 1.0);
-    renderer.setUniform("ballPos", vec3(ballEyePos.x + 250, ballEyePos.y + 250, ballEyePos.z));
+    renderer.setUniform("BallPos", vec3(ballEyePos.x + 250, ballEyePos.y + 250, ballEyePos.z));
     renderer.push();
     renderer.translate(vec3(0, 0, -7.5));
     renderer.scale(vec3(_tableLength - 50, _tableWidth - 50, 1.0));
@@ -708,9 +751,9 @@ public:
     renderer.quad();
     renderer.pop();
     renderer.endShader();
+    renderer.setDepthTest(true);
+    renderer.blendMode(agl::DEFAULT);
 
-    setupReflections();
-    drawPoolTable();
     drawCueStick();
     updatePoolBalls();
     drawPoolBalls();
@@ -720,39 +763,23 @@ public:
     renderer.pop();
 
     renderer.push();
-    renderer.rotate(vec3(-M_PI_2, 0, 0));
+    renderer.rotate(vec3(-M_PI_2, M_PI, 0));
     renderer.setUniform("ModelMatrix", renderer.modelMatrix());
-    renderer.cubemap("cubemap", "pure-sky");
-    renderer.setUniform("skybox", true);
+    renderer.cubemap("Cubemap", "pure-sky");
+    renderer.setUniform("Skybox", true);
     renderer.skybox(_viewVolumeSide * 5);
-    renderer.setUniform("skybox", false);
+    renderer.setUniform("Skybox", false);
     renderer.pop();
 
     if (_chaosAnimation)
     {
-      renderer.texture("image", "explosion");
-      renderer.setDepthTest(false);
-      renderer.blendMode(agl::ADD);
-      renderer.beginShader("billboard-animated");
-      int numRows = 8;
-      int numCols = 16;
-      int frame = int(_time * 30) % (numRows * numCols);
-      renderer.setUniform("Frame", frame);
-      renderer.setUniform("Rows", numRows);
-      renderer.setUniform("Cols", numCols);
-      renderer.setUniform("TopToBottom", false);
-      renderer.sprite(vec3(0, 0, 100), vec4(1.0f), 250.0);
-      renderer.endShader();
-      renderer.setDepthTest(true);
-      renderer.blendMode(agl::DEFAULT);
-    }
+      drawTransition();
+    }    
 
-    renderer.texture("fontTexture", "explosion");
-    renderer.text(" activated!", 125, 150);
+    drawLogo();
 
     renderer.endShader();
 
-    // renderer.texture("fontTexture", "explosion");
     // renderer.text(" activated!", 125, 150);
 
     // renderer.beginShader("cubemap");
@@ -801,13 +828,34 @@ protected:
   vec3 _eyeScaleVector;
   vec3 _eyeCenterVector;
   int _eyeDiameter;
+  float _eyeDiameterModifier = 0.25;
 
-  vector<string> _chaosEffects = {"vanilla", "stickyWalls", "floatingBalls", "largeBalls", "moreFriction", "tiltedTable", "invertedLaunch"};
+
+  vector<string> _chaosEffects = {"Plain Jane", "Sticky Situation", "Hover Havoc", "Biggie Smalls", "Friction Affliction", "Tilt-a-Table", "Get Gaslit"};
   map<string, bool> _chaosEffectStatus;
   string _activeChaosEffect;
   float _time = 0.0f;
   bool _chaosAnimation = false;
   float _chaosAnimStartTime = 9999;
+
+  vector<string> congratsMessages = {
+    "Hole in one!"
+    "That shot deserves a round of applause!",
+    "Glorb is impressed, but still hungry!",
+    "It has to be illegal to be that good; I have my an eye on you!",
+    "Someone call NASA, we've got a black hole!",
+    "You're making those balls disappear faster than I can blink!",
+    "Is this your full-time job or what?",
+    "Don't let your head get too big!",
+    "Someone get this guy in the olympics!",
+    "That shot was so clean, I could eat off of it",
+    "I could do this too you know, if I had arms",
+    "That shot was so good it made the other balls blush!",
+    "Now you see it, now you don't!",
+    "You're like the Michael Jordan of pool!",
+    "You've got more talent in your little finger than I have in my whole cornea!",
+    "That was too perfect, are you cheating somehow?"
+  };
 };
 
 int main(int argc, char **argv)
