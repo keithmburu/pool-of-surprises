@@ -1,8 +1,8 @@
 /**
- * @file collision-physics.cpp
+ * @file pool-of-surprises.cpp
  * @author Keith Mburu
- * @date 2023-04-02
- * @brief Implements collision physics between sprites
+ * @date 2023-04-18
+ * @brief Implements a version of pool that's not quite right
  */
 
 #include <cmath>
@@ -26,7 +26,6 @@ struct Ball
   glm::vec3 vel;
   glm::vec4 color;
   float size;
-  // vec3 gravity;
 };
 
 class Viewer : public Window
@@ -76,7 +75,8 @@ public:
     // renderer.loadCubemap("blue-photo-studio", "../cubemaps/blue-photo-studio", 5);
     // renderer.loadCubemap("colorful-studio", "../cubemaps/colorful-studio", 5);
     // renderer.loadCubemap("shanghai-bund", "../cubemaps/shanghai-bund", 5);
-    renderer.loadCubemap("sea-cubemap", "../cubemaps/sea-cubemap", 5);
+    // renderer.loadCubemap("sea-cubemap", "../cubemaps/sea-cubemap", 5);
+    renderer.loadCubemap("pure-sky", "../cubemaps/pure-sky", 5);
   }
 
   void loadShaders()
@@ -155,7 +155,6 @@ public:
       ball.vel = vec3(0);
       ball.color = vec4(1.0);
       ball.size = _viewVolumeSide / 20;
-      // ball.gravity = vec3(0, 0, -0.05);
       _balls.push_back(ball);
     }
   }
@@ -386,9 +385,9 @@ public:
     renderer.push();
     renderer.translate(vec3(0, 0, 200));
     vec3 n;
-    if (length(_balls[_activeBall].vel) < 5) {
+    if ((!_launching && length(_balls[_activeBall].vel) < 5) || _orbiting) {
       n = normalize(_camPos - vec3(0, 0, 200));
-      float thetaZ = atan2(n.y, n.x) + M_PI_2;
+      float thetaZ = atan2(n.y, -n.x) + M_PI_2;
       vec3 x2 = vec3(cos(thetaZ), -sin(thetaZ), 0);
       vec3 y2 = vec3(sin(thetaZ), cos(thetaZ), 0);
       vec3 z2 = vec3(0, 0, 1);
@@ -501,7 +500,6 @@ public:
   {
     for (int i = 0; i < _numBalls; i++)
     {
-      // _balls[i].gravity.z = -0.05f;
       _balls[i].pos.z = 0;
     }
   }
@@ -559,10 +557,6 @@ public:
       if (_launching)
       {
         _launchVel += vec3(-dx, dy, 0);
-        // cout << "3) active ball: " << _activeBall << "  launchVel: " << _launchVel << endl;
-        // vec4 launchVel = vec4(_launchVel, 1.0) + (renderer.viewMatrix() * vec4(-dx, dy, 0, 0));
-        // _launchVel = vec3(launchVel.x, launchVel.y, launchVel.z);
-        // cout << _launchVel << endl;
         for (int i = 0; i < _trajectoryBalls.size(); i++)
         {
           _trajectoryBalls[i].pos = _balls[_activeBall].pos + ((1.0f / (i + 1)) * _launchVel);
@@ -577,13 +571,9 @@ public:
         if (_launching)
         {
           _activeBall = closestDistIdx;
-          // cout << "1) active ball: " << _activeBall << "  launchVel: " << _launchVel << endl;
           _balls[_activeBall].vel = vec3(0);
           _balls[_activeBall].color /= 2.0f;
           _launchVel = vec3(-dx, dy, 0);
-          // vec4 launchVel = renderer.viewMatrix() * vec4(-dx, dy, 0, 0);
-          // _launchVel = vec3(launchVel.x, launchVel.y, launchVel.z);
-          // cout << _launchVel << endl;
           createTrajecBalls();
         }
         else
@@ -636,7 +626,6 @@ public:
       _leftClick = false;
       if (_launching)
       {
-        // cout << "2) active ball: " << _activeBall << "  launchVel: " << _launchVel << endl;
         if (_chaosEffectStatus["invertedLaunch"])
         {
           _balls[_activeBall].vel = vec3(_launchVel.x, -_launchVel.y, _launchVel.z);
@@ -703,27 +692,8 @@ public:
 
     renderer.push();
 
-    // cout << _chaosAnimation;
     _time += dt();
-    if (_chaosAnimation)
-    {
-      renderer.setDepthTest(false);
-      renderer.blendMode(agl::ADD);
-      renderer.beginShader("billboard-animated");
-      renderer.texture("image", "explosion");
-      int numRows = 8;
-      int numCols = 16;
-      int frame = int(_time * 30) % (numRows * numCols);
-      renderer.setUniform("Frame", frame);
-      renderer.setUniform("Rows", numRows);
-      renderer.setUniform("Cols", numCols);
-      renderer.setUniform("TopToBottom", false);
-      renderer.sprite(vec3(0, 0, 100), vec4(1.0f), 250.0);
-      renderer.endShader();
-      renderer.setDepthTest(true);
-      renderer.blendMode(agl::DEFAULT);
-    }
-
+    
     renderer.beginShader("test");
     renderer.setUniform("width", float(_width));
     renderer.setUniform("height", float(_height));
@@ -752,12 +722,33 @@ public:
     renderer.push();
     renderer.rotate(vec3(-M_PI_2, 0, 0));
     renderer.setUniform("ModelMatrix", renderer.modelMatrix());
-    renderer.cubemap("cubemap", "sea-cubemap");
+    renderer.cubemap("cubemap", "pure-sky");
     renderer.setUniform("skybox", true);
     renderer.skybox(_viewVolumeSide * 5);
     renderer.setUniform("skybox", false);
     renderer.pop();
 
+    if (_chaosAnimation)
+    {
+      renderer.texture("image", "explosion");
+      renderer.setDepthTest(false);
+      renderer.blendMode(agl::ADD);
+      renderer.beginShader("billboard-animated");
+      int numRows = 8;
+      int numCols = 16;
+      int frame = int(_time * 30) % (numRows * numCols);
+      renderer.setUniform("Frame", frame);
+      renderer.setUniform("Rows", numRows);
+      renderer.setUniform("Cols", numCols);
+      renderer.setUniform("TopToBottom", false);
+      renderer.sprite(vec3(0, 0, 100), vec4(1.0f), 250.0);
+      renderer.endShader();
+      renderer.setDepthTest(true);
+      renderer.blendMode(agl::DEFAULT);
+    }
+
+    renderer.texture("fontTexture", "explosion");
+    renderer.text(" activated!", 125, 150);
 
     renderer.endShader();
 
@@ -765,8 +756,7 @@ public:
     // renderer.text(" activated!", 125, 150);
 
     // renderer.beginShader("cubemap");
-    // // renderer.cubemap("cubemap", "sea-cubemap");
-    // renderer.cubemap("cubemap", "colorful-studio");
+    // renderer.cubemap("cubemap", "pure-sky");
     // renderer.skybox(_viewVolumeSide * 5);
     // renderer.endShader();
   }
@@ -797,8 +787,6 @@ protected:
   std::vector<vec3> _holes;
   int _activeBall = 0;
   vec3 _launchVel = vec3(0);
-
-  // vec3 _tableNormalForce = vec3(0, 0, 0.05);
 
   PLYMesh _poolTableMesh;
   vec3 _tableScaleVector;
