@@ -13,6 +13,7 @@ uniform float ka, kd, ks;
 uniform float phongExp;
 
 uniform sampler2D image;
+// uniform sampler2D bumpMap;
 
 out vec4 FragColor;
 
@@ -23,6 +24,7 @@ void main()
    vec3 v = normalize(eyeVec);
    vec3 r = normalize((2 * dot(n, l) * n) - l);
 
+   // vec3 materialColor = mColor * texture(image, uv).xyz * texture(bumpMap, uv).xyz;
    vec3 materialColor = mColor * texture(image, uv).xyz;
 
    vec3 color = ka * lightColor;
