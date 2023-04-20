@@ -1,13 +1,13 @@
 #version 400
 
 in vec2 uv;
-flat in int useTextures;
 
 uniform sampler2D image;
+uniform vec4 Color;
 
 out vec4 FragColor;
 
 void main()
 {
-  FragColor = texture(image, uv * vec2(1, -1));
+  FragColor = Color * texture(image, uv * vec2(1, -1));
 }

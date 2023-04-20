@@ -5,7 +5,6 @@ layout (location = 1) in vec3 vNormals;
 layout (location = 2) in vec2 vUVs;
 
 uniform mat4 MVP;
-uniform mat4 ModelMatrix;
 
 out vec2 uv;
 

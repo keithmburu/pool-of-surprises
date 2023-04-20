@@ -9,6 +9,6 @@ out vec4 FragColor;
 void main()
 {
   vec4 c = color * texture(fontTexture, uv);
-  FragColor = c; 
-  // FragColor = vec4(1, 1, 1, 1);
+  FragColor = c; //vec4(1,0,0,1);
+  // FragColor = color;
 }
