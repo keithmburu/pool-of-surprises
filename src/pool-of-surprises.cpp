@@ -22,10 +22,10 @@ using namespace agl;
 struct Ball
 {
   int id;
-  glm::vec3 pos;
-  glm::vec3 vel;
-  glm::vec3 rot;
-  glm::vec4 color;
+  vec3 pos;
+  vec3 vel;
+  vec3 rot;
+  vec4 color;
   float size;
 };
 
@@ -40,8 +40,7 @@ public:
   void setup()
   {
     srand(time(nullptr));
-    renderer.fontSize(width() / 25);
-    renderer.fontColor(glm::vec4(0.98, 0.94, 0.82, 0.8));
+    renderer.fontColor(vec4(0.98, 0.94, 0.82, 1));
 
     loadTextures();
     loadCubemaps();
@@ -199,10 +198,9 @@ public:
           ball.vel = vec3(0);
           ball.size = 0;
           _eyeDiameterModifier += 0.02;
+          _eyeColor = vec4(0, 1, 0, 0.5);
         }
       } else {
-        if (_chaosEffectStatus["Tilt-a-Table"]) 
-          ball.pos += vec3(10, 0, 0) * dt();
         // friction
         ball.vel *= _chaosEffectStatus["Friction Affliction"] ? 0.8f : 0.99f;
         holeDetection(ball);
@@ -210,6 +208,7 @@ public:
         collisionDetection(ball, i);
       }
       vec3 dist = ball.vel * dt();
+      dist += _chaosEffectStatus["Tilt-a-Table"]? vec3(10, 0, 0) * dt():vec3(0);
       ball.pos += dist;
       ball.rot += vec3(-dist.y, dist.x, 0) * float((M_PI * 2) / (M_PI * ball.size * _sphereDefaultRadius * 2));
       _balls[i] = ball;
@@ -277,10 +276,11 @@ public:
       {
         _congratsMessage = congratsMessages[ball.id];
         vec3 glorbPos = vec3(0, 0, 200);
-        ball.vel = 0.5f * (glorbPos - ball.pos);
+        ball.vel = 0.5f * (glorbPos - ball.pos) * vec3(-1, 1, 1);
         ball.size *= 2;
         _numBallsSunk += 1;
         _congratsStartTime = elapsedTime() + 1;
+        if (_numBallsSunk == 16) _endGame = true;
       }
       else if (length(_holes[i] - ball.pos) < _viewVolumeSide / 50)
       {
@@ -289,13 +289,32 @@ public:
     }
   }
 
+  void endGame() {
+    _enableChaos = false;
+    float timer = elapsedTime() - _congratsStartTime;
+    if (timer > 5) {
+      if (timer > 8 && timer <= 13) {
+        renderer.fontSize(width() / 20);
+        string message = "I don't feel so good...";
+        float x = width() / 2 - renderer.textWidth(message) * 0.5f;
+        float y = height() * 0.94 + renderer.textHeight() * 0.25f;
+        renderer.text("I don't feel so good...", x, y);
+      }
+      if (timer > 10 && timer <= 15) _eyeDiameterModifier += 0.005;
+      if (timer > 15) {
+        renderer.fontSize(width() / 3);
+        float x = width() / 2 - renderer.textWidth("FIN") * 0.5f;
+        float y = height() / 2 + renderer.textHeight() * 0.25f;
+        renderer.text("FIN", x, y);
+      }
+    }
+  }
+
   int launchDetection(int clickX, int clickY)
   {
     float closestDist = 99999999;
     int closestDistIdx = -1;
-    vec2 clickScreenPos = vec2(clickX, clickY);
-    cout << "click pos: " << clickScreenPos << endl;
-    
+    vec2 clickScreenPos = vec2(clickX, clickY);    
     // // vec4 clickProjPos = vec4(0, 0, 1, 1);
     // vec4 clickProjPos = vec4(0, 0, -1, 1);
     // clickProjPos.x = (clickX / width() - 0.5f) * 2;
@@ -424,7 +443,7 @@ public:
 
   void drawEye()
   {
-    renderer.setUniform("MaterialColor", vec4(1));
+    renderer.setUniform("MaterialColor", _eyeColor);
     renderer.setUniform("EyeOfSauron", true);
     renderer.texture("Image", "eye");
     renderer.push();
@@ -488,7 +507,6 @@ public:
         {
           if (it->second == false)
           {
-            cout << "activating chaos effect: " << it->first << endl;
             _chaosEffectStatus[it->first] = true;
             _activeChaosEffect = effect;
             if (effect == "Hover Havoc")
@@ -518,7 +536,6 @@ public:
         }
       }
     }
-    // cout << "|" << elapsedTime() - _chaosAnimStartTime << "|";
     if (elapsedTime() - _chaosAnimStartTime > 3)
     {
       _chaosAnimation = false;
@@ -568,10 +585,6 @@ public:
   }
 
   void drawChaosTransition() {
-    string message = _activeChaosEffect + " activated!";
-    float x = width() / 2 - renderer.textWidth(message) * 0.5f;
-    float y = height() * 0.9 + renderer.textHeight() * 0.25f;
-    renderer.text(message, x, y);
     renderer.setDepthTest(false);
     renderer.blendMode(agl::ADD);
     renderer.beginShader("billboard-animated");
@@ -594,16 +607,16 @@ public:
     renderer.beginShader("texture");
     renderer.texture("Image", "logo");
     // renderer.sprite(vec3(-100, -100, 200), vec4(1.0f), 150.0);
-    renderer.translate(vec3(-200, 0, 125));
-    vec3 n = normalize(_camPos - vec3(-200, 0, 125));
-    float thetaX = atan2(n.z, -n.y) - M_PI_2;
+    renderer.translate(vec3(-250, 0, 75));
+    vec3 n = normalize(_camPos - vec3(-250, 0, 75));
+    float thetaX = clamp(atan2(n.z, -n.y) - M_PI_2, -M_PI_2, 0.0);
     vec3 x1 = vec3(1, 0, 0);
     vec3 y1 = vec3(0, cos(thetaX), -sin(thetaX));
     vec3 z1 = vec3(0, sin(thetaX), cos(thetaX));
     mat3 R_x = mat3(x1, y1, z1);
     renderer.rotate(R_x);
     // renderer.rotate(vec3(0, M_PI_2, 0));
-    renderer.scale(vec3(_viewVolumeSide / 4));
+    renderer.scale(vec3(_viewVolumeSide / 3));
     renderer.setDepthTest(false);
     renderer.blendMode(agl::BLEND);
     renderer.setUniform("Color", vec4(0, 0, 0, 0.5));
@@ -623,8 +636,18 @@ public:
     renderer.beginShader("fluid");
     renderer.setUniform("Resolution", vec2(width(), height()));
     renderer.setUniform("Time", elapsedTime());
-    vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[_activeBall].pos, 1.0);
-    renderer.setUniform("BallPos", vec3(ballEyePos.x + 250, ballEyePos.y + 250, ballEyePos.z));
+    // vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[_activeBall].pos, 1.0);
+    // vec4 ballEyePos = vec4(_balls[_activeBall].pos, 1.0);
+    // renderer.setUniform("BallPos", vec3(ballEyePos.x + 250, ballEyePos.y + 250, ballEyePos.z));
+
+    vec4 ballWorldPos = vec4(_balls[_activeBall].pos, 1.0);
+    vec4 ballEyePos = renderer.viewMatrix() * ballWorldPos;
+    vec4 ballProjPos = renderer.projectionMatrix() * ballEyePos;
+    ballProjPos /= ballProjPos.w;
+    vec2 ballScreenPos;
+    ballScreenPos.x = (ballProjPos.x + 1.0f) * width() / 2;
+    ballScreenPos.y = (ballProjPos.y + 1.0f) * height() / 2;
+    renderer.setUniform("BallPos", vec3(ballScreenPos, 1));
     renderer.push();
     renderer.translate(vec3(0, 0, -7.5));
     renderer.scale(vec3(_tableLength - 50, _tableWidth - 50, 1.0));
@@ -811,14 +834,32 @@ public:
 
     if (elapsedTime() - _congratsStartTime < 5)
     {
+      renderer.fontSize(width() / 20);
       float x = width() / 2 - renderer.textWidth(_congratsMessage) * 0.5f;
       float y = height() * 0.94 + renderer.textHeight() * 0.25f;
       renderer.text(_congratsMessage, x, y);
     }
+    if (elapsedTime() - _congratsStartTime > 1)
+    {
+      _eyeColor = vec4(1);
+    }
 
-    string message = to_string(_numBallsSunk) + " balls sunk";
-    float x = width() * 0.9 - renderer.textWidth(message);
-    float y = height() / 10 + renderer.textHeight() * 0.25f;
+    if (_activeChaosEffect == "Plain Jane") {
+      renderer.fontColor(vec4(0, 1, 0, 1));
+    } else {
+      renderer.fontColor(vec4(1, 0, 0, 1));
+    }
+    renderer.fontSize(width() / 15);
+    float x = width() / 2 - renderer.textWidth(_activeChaosEffect) * 0.5f;
+    float y = height() * 0.85 + renderer.textHeight() * 0.25f;
+    renderer.text(_activeChaosEffect, x, y);
+    renderer.fontColor(vec4(0.98, 0.94, 0.82, 1));
+      
+
+    string message = "BALLS DEVOURED: " + to_string(_numBallsSunk);
+    renderer.fontSize(width() / 20);
+    x = width() * 0.97 - renderer.textWidth(message);
+    y = height() / 10 + renderer.textHeight() * 0.25f;
     renderer.text(message, x, y);
 
     renderer.beginShader("cubemap");
@@ -831,7 +872,7 @@ public:
     // renderer.rotate(vec3(-M_PI_2, 0, 0));
     if (_chaosAnimation) drawChaosTransition();
     drawPoolTable();
-    // drawFluid();
+    drawFluid();
     drawCueStick();
     updatePoolBalls();
     drawPoolBalls();
@@ -839,6 +880,7 @@ public:
     drawLogo();
     drawEye();
     if (_enableChaos) chaos();
+    if (_endGame) endGame();
     renderer.pop();
     
     renderer.endShader();
@@ -886,13 +928,14 @@ protected:
   vec3 _eyeCenterVector;
   int _eyeDiameter;
   float _eyeDiameterModifier = 0.25;
+  vec4 _eyeColor = vec4(1);
 
 
   vector<string> _chaosEffects = {"Plain Jane", "Sticky Situation", "Hover Havoc", "Biggie Smalls", "Friction Affliction", "Tilt-a-Table", "Get Gaslit"};
   map<string, bool> _chaosEffectStatus;
   string _activeChaosEffect = "Plain Jane";
   float _time = 0.0f;
-  bool _enableChaos = false;
+  bool _enableChaos = true;
   bool _chaosAnimation = false;
   float _chaosAnimStartTime = 9999;
 
@@ -900,23 +943,25 @@ protected:
   string _congratsMessage;
 
   vector<string> congratsMessages = {
-    "Hole in one! Oops, wrong game...",
-    "I'd give you a round of applause if I could!",
-    "Glorb is impressed, but still hungry!",
-    "Being that good can't be legal; I have my eye on you!",
-    "Your precision is giving me Jenga-with-a-neurosurgeon flashbacks!",
-    "You're making those balls disappear faster than I can blink!",
-    "Is this your full-time job or what?",
-    "Don't let your head get too big, only room for one giant ego!",
-    "My God, someone get this guy in the olympics!",
-    "That shot was so clean, I could eat off of it!",
-    "I could do this too you know, if I had body parts...",
-    "That shot was so devastating it made the other balls cry!",
-    "Now you see it, now you don't!",
-    "You're like the Michael Jordan of Tabletop Trick Shots!",
-    "There's more talent in your little finger than in my entire iris!",
-    "That was too perfect, are you sure you're not cheating?"
+    "\"Hole in one! Oops, wrong game...\"",
+    "\"I'd give you a round of applause if I could!\"",
+    "\"Glorb is impressed, but still hungry!\"",
+    "\"Being that good can't be legal; I have my eye on you!\"",
+    "\"Your precision is giving me Jenga-with-a-neurosurgeon flashbacks!\"",
+    "\"You're making those balls disappear faster than I can blink!\"",
+    "\"Is this your full-time job or what?\"",
+    "\"Don't let your head get too big, only room for one giant ego!\"",
+    "\"My God, someone get this guy in the olympics!\"",
+    "\"That shot was so clean, I could eat off of it!\"",
+    "\"I could do this too you know, if I had body parts...\"",
+    "\"That shot was so devastating it made the other balls cry!\"",
+    "\"Now you see it, now you don't!\"",
+    "\"You're like the Michael Jordan of Tabletop Trick Shots!\"",
+    "\"There's more talent in your little finger than in my entire iris!\"",
+    "\"That was too perfect, are you sure you're not cheating?\""
   };
+
+  bool _endGame = false;
 };
 
 int main(int argc, char **argv)
