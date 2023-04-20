@@ -40,7 +40,7 @@ public:
   void setup()
   {
     srand(time(nullptr));
-    renderer.fontSize(20);
+    renderer.fontSize(width() / 25);
     renderer.fontColor(glm::vec4(0.98, 0.94, 0.82, 0.8));
 
     loadTextures();
@@ -198,11 +198,9 @@ public:
         if (length(glorbPos - ball.pos) <= glorbRadius) {
           ball.vel = vec3(0);
           ball.size = 0;
+          _eyeDiameterModifier += 0.02;
         }
       } else {
-        vec3 dist = ball.vel * dt();
-        ball.pos += dist;
-        ball.rot += vec3(dist.y, dist.x, 0) * float((M_PI * 2) / (M_PI * ball.size * _sphereDefaultRadius * 2));
         if (_chaosEffectStatus["Tilt-a-Table"]) 
           ball.pos += vec3(10, 0, 0) * dt();
         // friction
@@ -211,6 +209,9 @@ public:
         boundaryDetection(ball);
         collisionDetection(ball, i);
       }
+      vec3 dist = ball.vel * dt();
+      ball.pos += dist;
+      ball.rot += vec3(-dist.y, dist.x, 0) * float((M_PI * 2) / (M_PI * ball.size * _sphereDefaultRadius * 2));
       _balls[i] = ball;
     }
   }
@@ -278,7 +279,6 @@ public:
         vec3 glorbPos = vec3(0, 0, 200);
         ball.vel = 0.5f * (glorbPos - ball.pos);
         ball.size *= 2;
-        _eyeDiameterModifier += 0.02;
         _numBallsSunk += 1;
         _congratsStartTime = elapsedTime() + 1;
       }
@@ -569,8 +569,8 @@ public:
 
   void drawChaosTransition() {
     string message = _activeChaosEffect + " activated!";
-    float x = 250 - renderer.textWidth(message) * 0.5f;
-    float y = 450 + renderer.textHeight() * 0.25f;
+    float x = width() / 2 - renderer.textWidth(message) * 0.5f;
+    float y = height() * 0.9 + renderer.textHeight() * 0.25f;
     renderer.text(message, x, y);
     renderer.setDepthTest(false);
     renderer.blendMode(agl::ADD);
@@ -811,14 +811,14 @@ public:
 
     if (elapsedTime() - _congratsStartTime < 5)
     {
-      float x = 250 - renderer.textWidth(_congratsMessage) * 0.5f;
-      float y = 475 + renderer.textHeight() * 0.25f;
+      float x = width() / 2 - renderer.textWidth(_congratsMessage) * 0.5f;
+      float y = height() * 0.94 + renderer.textHeight() * 0.25f;
       renderer.text(_congratsMessage, x, y);
     }
 
     string message = to_string(_numBallsSunk) + " balls sunk";
-    float x = 450 - renderer.textWidth(message);
-    float y = 50 + renderer.textHeight() * 0.25f;
+    float x = width() * 0.9 - renderer.textWidth(message);
+    float y = height() / 10 + renderer.textHeight() * 0.25f;
     renderer.text(message, x, y);
 
     renderer.beginShader("cubemap");
@@ -838,8 +838,6 @@ public:
     drawTrajectoryBalls();
     drawLogo();
     drawEye();
-    // glBindTexture(GL_TEXTURE_2D, renderer.fontTexId());
-    // renderer.texture("Image", "fontTexture");
     if (_enableChaos) chaos();
     renderer.pop();
     
@@ -902,21 +900,21 @@ protected:
   string _congratsMessage;
 
   vector<string> congratsMessages = {
-    "Hole in one! Oops, wrong game..."
-    "I would give you a round of applause if I could!",
+    "Hole in one! Oops, wrong game...",
+    "I'd give you a round of applause if I could!",
     "Glorb is impressed, but still hungry!",
-    "Being that good can't be legal; I have my an eye on you!",
-    "I haven't seen that kind of precision since the time I played Jenga with a neurosurgeon!",
+    "Being that good can't be legal; I have my eye on you!",
+    "Your precision is giving me Jenga-with-a-neurosurgeon flashbacks!",
     "You're making those balls disappear faster than I can blink!",
     "Is this your full-time job or what?",
-    "Don't let your head get too big, there's only room for one giant ego here!",
+    "Don't let your head get too big, only room for one giant ego!",
     "My God, someone get this guy in the olympics!",
     "That shot was so clean, I could eat off of it!",
     "I could do this too you know, if I had body parts...",
-    "That shot was so brutal it made the other balls cry!",
+    "That shot was so devastating it made the other balls cry!",
     "Now you see it, now you don't!",
     "You're like the Michael Jordan of Tabletop Trick Shots!",
-    "You've got more talent in your little finger than I have in my entire iris!",
+    "There's more talent in your little finger than in my entire iris!",
     "That was too perfect, are you sure you're not cheating?"
   };
 };
