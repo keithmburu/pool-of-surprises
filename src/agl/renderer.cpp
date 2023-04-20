@@ -30,7 +30,7 @@ using glm::quat;
 using std::string;
 using std::vector;
 
-int Renderer::PrimitiveSubdivision = 8;
+int Renderer::PrimitiveSubdivision = 16;
 
 Renderer::Renderer() {
   _cube = 0;
@@ -232,7 +232,8 @@ void Renderer::initText() {
       printf("Could not create stash.\n");
     }
 
-    _fontNormal = fonsAddFont(_fs, "sans", "../fonts/DroidSerif-Regular.ttf");
+    // _fontNormal = fonsAddFont(_fs, "sans", "../fonts/DroidSerif-Regular.ttf");
+    _fontNormal = fonsAddFont(_fs, "amatic", "../fonts/AmaticSC-Bold.ttf");
     if (_fontNormal == FONS_INVALID) {
       printf("Could not add font normal.\n");
     }
@@ -338,9 +339,10 @@ void Renderer::text(const std::string& text, float x, float y) {
 
   mat4 ortho = glm::ortho(0.0f, viewport[2], viewport[3], 0.0f, -100.0f, 100.0f);
   BlendMode m = _blendMode;
-  blendMode(BLEND);
+  blendMode(ADD);
   beginShader("text");
   setUniform("MVP", ortho);
+  setUniform("fontTexture", GLFONS_FONT_TEXTURE_SLOT);
 
   fonsSetSize(_fs, _fontSize);
   fonsSetFont(_fs, _fontNormal);
@@ -693,8 +695,8 @@ void Renderer::loadTexture(const std::string& name,
     glGenTextures(1, &texId);
     _textures[name] = Texture{texId, slot};
   } else {
-    //std::cout << "Warning: texture already registered with name: " << 
-        //name << std::endl;
+    std::cout << "WARNING: texture already registered with name: " << 
+        name << std::endl;
     texId = _textures[name].texId;
   }
 
