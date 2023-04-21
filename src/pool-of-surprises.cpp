@@ -141,42 +141,28 @@ public:
   }
 
   void startGame() {
-    float timer = elapsedTime() - _congratsStartTime;
+    float timer = elapsedTime();
     renderer.fontSize(width() / 20);
     string message; float x; float y;
-    if (timer < 12) {
-      if (timer < 3) {
+    if (timer < 22) {
+      if (timer < 9) {
         message = "Hey, you there!";
-        x = width() / 2 - renderer.textWidth(message) * 0.5f;
-        y = height() * 0.94 + renderer.textHeight() * 0.25f;
-      } else if (timer < 6) {
-        message = "Welcome to Omega Percei-8 stranger.";
-        x = width() / 2 - renderer.textWidth(message) * 0.5f;
-        y = height() * 0.94 + renderer.textHeight() * 0.25f;
-      } else if (timer < 9) {
-        message = "How about a game of pool while you get your bearings?";
-        x = width() / 2 - renderer.textWidth(message) * 0.5f;
-        y = height() * 0.94 + renderer.textHeight() * 0.25f;
-      } else if (timer < 12) {
-        message = "I warn you though, it might not be what you expect.";
-        x = width() / 2 - renderer.textWidth(message) * 0.5f;
-        y = height() * 0.94 + renderer.textHeight() * 0.25f;
+      } else if (timer < 13) {
+        message = "Welcome to Omicron Persei 8, stranger.";
+      } else if (timer < 17.5) {
+        message = "How about a game of pool while you find your bearings?";
+      } else if (timer < 21.5) {
+        message = "I warn you though, it might not be quite like you expect...";
       }
+      x = width() / 2 - renderer.textWidth(message) * 0.5f;
+      y = height() * 0.94 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
-      _glorbPos.z += 0.5 * sin(10 * _time);
+      _glorbPos.y += 0.5 * sin(10 * timer);
     } else {
-      int dy = 1;
-      float ONE_DEG = 0.017;
-      _elevation += dy * (M_PI / 180);
-      if (_elevation > (M_PI_2)-ONE_DEG)
-      {
-        _elevation = (M_PI_2)-ONE_DEG;
-      }
-      else if (_elevation < -((M_PI_2)-ONE_DEG))
-      {
-        _elevation = -((M_PI_2)-ONE_DEG);
-      }
+      _showLogo = true;
+      _elevation -= M_PI / 180;
     }
+    if (_elevation < -M_PI_4 * 1.25) _startGame = false;
   }
 
   void createPoolBalls()
@@ -376,6 +362,7 @@ public:
     _enableChaos = false;
     float timer = elapsedTime() - _congratsStartTime;
     if (timer > 5) {
+      _showLogo = false;
       if (timer > 8 && timer <= 13) {
         renderer.fontSize(width() / 20);
         string message = "I don't feel so good...";
@@ -781,13 +768,13 @@ public:
   {
     float ONE_DEG = 0.017;
     _elevation += dy * (M_PI / 180);
-    if (_elevation > (M_PI_2)-ONE_DEG)
+    if (_elevation > M_PI_2 - ONE_DEG)
     {
-      _elevation = (M_PI_2)-ONE_DEG;
+      _elevation = M_PI_2 - ONE_DEG;
     }
-    else if (_elevation < -((M_PI_2)-ONE_DEG))
+    else if (_elevation < -(M_PI_2 - ONE_DEG))
     {
-      _elevation = -((M_PI_2)-ONE_DEG);
+      _elevation = -(M_PI_2 - ONE_DEG);
     }
     _azimuth -= dx * (M_PI / 180);
     if (_azimuth > 2 * M_PI)
@@ -863,6 +850,8 @@ public:
       {
         _balls[i].vel = vec3(0);
       }
+    } else if (key == GLFW_KEY_E) {
+      _endGame = true;
     }
   }
 
@@ -881,7 +870,7 @@ public:
     _time += dt();
 
     if (_startGame) startGame();
-    else _glorbPos.z = 200;
+    else _glorbPos.y = 0;
 
     if (elapsedTime() - _congratsStartTime < 5)
     {
@@ -898,7 +887,7 @@ public:
       _eyeColor = vec4(1);
     }
 
-    if (!_endGame) {
+    if (!_startGame && !_endGame) {
       if (_chaosEffect == "Plain Jane") {
         renderer.fontColor(vec4(0, 1, 0, 1));
       } else {
@@ -932,7 +921,7 @@ public:
     updatePoolBalls();
     drawPoolBalls();
     drawTrajectoryBalls();
-    drawLogo();
+    if (_showLogo) drawLogo();
     drawEye();
     if (_enableChaos) chaos();
     if (_chaosAnimation) drawChaosTransition();
@@ -953,6 +942,7 @@ protected:
   int _skyBoxSize = 10;
 
   bool _startGame = true;
+  bool _showLogo = false;
 
   vec3 _camPos = vec3(0, 0, -_viewVolumeSide);
   vec3 _lookPos = vec3(0, 0, 0);
