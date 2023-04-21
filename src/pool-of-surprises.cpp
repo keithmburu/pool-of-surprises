@@ -52,13 +52,13 @@ public:
 
     for (string effect : _chaosEffects)
     {
-      _chaosEffectStatus[effect] = false;
+      _chaosStatus[effect] = false;
     }
   }
 
   void loadTextures()
   {
-    for (int i = 0; i < 16; i++)
+    for (int i = 0; i < std::min(_numBalls, 16); i++)
     {
       renderer.loadTexture("ball_" + to_string(i + 1), "../textures/pool-balls/ball_" + to_string(i + 1) + ".png", 0);
     }
@@ -140,14 +140,59 @@ public:
     return vec3(-centroidX, -centroidY, -centroidZ);
   }
 
+  void startGame() {
+    float timer = elapsedTime() - _congratsStartTime;
+    renderer.fontSize(width() / 20);
+    string message; float x; float y;
+    if (timer < 12) {
+      if (timer < 3) {
+        message = "Hey, you there!";
+        x = width() / 2 - renderer.textWidth(message) * 0.5f;
+        y = height() * 0.94 + renderer.textHeight() * 0.25f;
+      } else if (timer < 6) {
+        message = "Welcome to Omega Percei-8 stranger.";
+        x = width() / 2 - renderer.textWidth(message) * 0.5f;
+        y = height() * 0.94 + renderer.textHeight() * 0.25f;
+      } else if (timer < 9) {
+        message = "How about a game of pool while you get your bearings?";
+        x = width() / 2 - renderer.textWidth(message) * 0.5f;
+        y = height() * 0.94 + renderer.textHeight() * 0.25f;
+      } else if (timer < 12) {
+        message = "I warn you though, it might not be what you expect.";
+        x = width() / 2 - renderer.textWidth(message) * 0.5f;
+        y = height() * 0.94 + renderer.textHeight() * 0.25f;
+      }
+      renderer.text(message, x, y);
+      _glorbPos.z += 0.5 * sin(10 * _time);
+    } else {
+      int dy = 1;
+      float ONE_DEG = 0.017;
+      _elevation += dy * (M_PI / 180);
+      if (_elevation > (M_PI_2)-ONE_DEG)
+      {
+        _elevation = (M_PI_2)-ONE_DEG;
+      }
+      else if (_elevation < -((M_PI_2)-ONE_DEG))
+      {
+        _elevation = -((M_PI_2)-ONE_DEG);
+      }
+    }
+  }
+
   void createPoolBalls()
   {
+    float k = (float) 3 / 1;
+    float a = (_tableWidth - 100) / 2;
     for (int i = 0; i < _numBalls; i++)
     {
       Ball ball;
       ball.id = i;
-      ball.pos.x = pow(-1, rand()) * (rand() % ((_tableLength - 100) / 2));
-      ball.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
+      float theta = ((float) i / _numBalls) * M_PI;
+      float r = a * cos(k * theta);
+      ball.pos.x = r * cos(theta);
+      ball.pos.y = r * sin(theta);
+      // ball.pos.x = pow(-1, rand()) * (rand() % ((_tableLength - 100) / 2));
+      // ball.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
       // ball.pos.x = (float(i + 1) / _numBalls) * (_tableLength - 100);
       // ball.pos.x -= _tableLength / 2 - 50;
       // ball.pos.y = (float(i + 1) / _numBalls) * (_tableWidth - 100);
@@ -190,103 +235,141 @@ public:
     for (int i = 0; i < _numBalls; i++)
     {
       Ball ball = _balls[i];
-      if (ball.size == _viewVolumeSide / 10) {
+      if (ball.size == 2 * _ballDefaultSize) {
         // floating up to glorb
-        vec3 glorbPos = vec3(0, 0, 200);
-        float glorbRadius = (_viewVolumeSide / 4) * _eyeDiameterModifier * 0.5;
-        if (length(glorbPos - ball.pos) <= glorbRadius) {
+        // float glorbRadius = (_viewVolumeSide / 4) * _eyeDiameterModifier * 0.5;
+        float glorbRadius = _eyeScaleVector.x * _eyeDiameterModifier * 0.5;
+        if (length(_glorbPos - ball.pos) <= glorbRadius) {
+          ball.pos = vec3(0, -1000, 200);
           ball.vel = vec3(0);
           ball.size = 0;
+          // _balls.erase(_balls.begin() + i);
+          // _numBalls -= 1;
           _eyeDiameterModifier += 0.02;
           _eyeColor = vec4(0, 1, 0, 0.5);
         }
       } else {
         // friction
-        ball.vel *= _chaosEffectStatus["Friction Affliction"] ? 0.8f : 0.99f;
-        holeDetection(ball);
-        boundaryDetection(ball);
-        collisionDetection(ball, i);
+        ball.vel *= _chaosStatus["Friction Affliction"] ? 0.8f : 0.99f;
+        if (_chaosStatus["Tilt-a-Table"]) ball.vel += vec3(1, 0, 0);
+        bool sinking = holeDetection(ball);
+        if (!sinking) {
+          bool collided = false;
+          for (int j = i + 1; j < _numBalls && !collided; j++)
+          {
+            collided = collisionDetection(i, j);
+          }
+          boundaryDetection(ball);
+        }
       }
       vec3 dist = ball.vel * dt();
-      dist += _chaosEffectStatus["Tilt-a-Table"]? vec3(10, 0, 0) * dt():vec3(0);
       ball.pos += dist;
-      ball.rot += vec3(-dist.y, dist.x, 0) * float((M_PI * 2) / (M_PI * ball.size * _sphereDefaultRadius * 2));
+      ball.rot += vec3(-dist.y, dist.x, 0) * float((M_PI * 2) / (M_PI * ball.size * _sphereRadius * 2));
       _balls[i] = ball;
     }
   }
 
-  void collisionDetection(Ball& ball, int i)
+  bool collisionDetection(int i, int j)
   {
-    for (int j = i + 1; j < _numBalls; j++)
+    Ball ball1 = _balls[i];
+    Ball ball2 = _balls[j];
+    float overlap = _sphereRadius * (ball1.size + ball2.size) - length(ball1.pos - ball2.pos);
+    if (overlap > 0.1)
     {
-      Ball otherBall = _balls[j];
-      if (length(ball.pos - otherBall.pos) <= (_sphereDefaultRadius * ball.size + _sphereDefaultRadius * otherBall.size))
-      {
-        float overlap = (_sphereDefaultRadius * ball.size + _sphereDefaultRadius * otherBall.size) - length(ball.pos - otherBall.pos);
-        vec3 normal = normalize(ball.pos - otherBall.pos);
-        ball.pos += normal * overlap / 2.0f;
-        otherBall.pos += -normal * overlap / 2.0f;
-        // cout << "collision " << elapsedTime() << endl;
-        // ball.vel = 2 * dot(ball.vel, normal) * normal - ball.vel;
-        // vec3 relativeVel = (otherBall.vel - ball.vel) / 2.0f;
-        // vec3 newRelativeVel = reflect(relativeVel, normal);
-        // ball.vel = newRelativeVel;
-        ball.vel = reflect(ball.vel, normal);
-        otherBall.vel = reflect(otherBall.vel, -normal);
-        // newRelativeVel = reflect(-relativeVel, -normal);
-        // otherBall.vel = newRelativeVel;
-        // ball.vel = (otherBall.vel - ball.vel) / 2.0f;
-        // if (length(otherBall.vel) != 0) ball.vel = otherBall.vel;
-        // else ball.vel = vec3(ball.vel.x, ball.vel.x, 1.0);
-        break;
+      vec3 normal = normalize(ball1.pos - ball2.pos);
+      ball1.pos += normal * overlap / 2.0f;
+      ball2.pos -= normal * overlap / 2.0f;
+      // cout << "collision " << elapsedTime() << endl;
+      // ball1.vel = 2 * dot(ball1.vel, normal) * normal - ball1.vel;
+      // vec3 relativeVel = (ball2.vel - ball1.vel) / 2.0f;
+      // vec3 newRelativeVel = reflect(relativeVel, normal);
+      // ball1.vel = newRelativeVel;
+      // vec3 beginningSumOfVels = ball1.vel + ball2.vel;
+      if (length(ball1.vel) >= 25 || length(ball2.vel) >= 25) {
+        cout << ball1.vel << " vs " << ball2.vel << endl;
       }
+      if (length(ball1.vel) >= 25 && length(ball2.vel) >= 25) {
+        ball1.vel = reflect(ball1.vel, normal);
+        ball2.vel = reflect(ball2.vel, -normal);
+        // cout << "both reflect" << endl;
+      } else if (length(ball1.vel) < 25 && length(ball2.vel) >= 25) {
+        ball1.vel = ball2.vel / 2.0f;
+        ball2.vel = reflect(ball2.vel, -normal) / 2.0f;
+        // cout << "ball2 reflects" << endl;
+      } else if (length(ball2.vel) < 25 && length(ball1.vel) >= 25) {
+        // cout << ball2.vel;
+        ball2.vel = ball1.vel / 2.0f;
+        // cout << " vs " << ball2.vel;
+        ball1.vel = reflect(ball1.vel, normal) / 2.0f;
+        // cout << " vs " << ball2.vel << endl;
+        // cout << "ball reflects" << endl;
+      }
+      if (length(ball1.vel) >= 25 || length(ball2.vel) >= 25) {
+        cout << ball1.vel << " vs " << ball2.vel << endl << endl;
+      }
+      // ball1.vel = (ball2.vel - ball1.vel) / 2.0f;
+      // ball2.vel = (ball1.vel - ball2.vel) / 2.0f;
+      _balls[i] = ball1;
+      _balls[j] = ball2;
+      return true;
+      // vec3 endingSumOfVels = ball1.vel + ball2.vel;
+      // cout << beginningSumOfVels << " vs " << endingSumOfVels << endl;
+      // newRelativeVel = reflect(-relativeVel, -normal);
+      // ball2.vel = newRelativeVel;
+      // ball1.vel = (ball2.vel - ball1.vel) / 2.0f;
+      // if (length(ball2.vel) != 0) ball1.vel = ball2.vel;
+      // else ball1.vel = vec3(ball1.vel.x, ball1.vel.x, 1.0);
+    } else {
+      return false;
     }
   }
 
   void boundaryDetection(Ball& ball)
   {
-    int ballRadius = _sphereDefaultRadius * ball.size;
-    int xThresh = (_tableLength - 75) / 2;
-    int ballLeft = ball.pos.x - ballRadius;
-    int ballRight = ball.pos.x + ballRadius;
+    float ballRadius = _sphereRadius * ball.size;
+    float xThresh = (_tableLength - 75) / 2.0f;
+    float ballLeft = ball.pos.x - ballRadius;
+    float ballRight = ball.pos.x + ballRadius;
     if (ballLeft < -xThresh || ballRight > xThresh)
     {
       ball.pos.x += (ballLeft < -xThresh) ? -xThresh - ballLeft : 0;
       ball.pos.x += (ballRight > xThresh) ? xThresh - ballRight : 0;
-      ball.vel.x = _chaosEffectStatus["Sticky Situation"] ? 0 : -ball.vel.x;
-      ball.vel.y = _chaosEffectStatus["Sticky Situation"] ? 0 : ball.vel.y;
+      ball.vel.x = _chaosStatus["Sticky Situation"] ? 0 : -ball.vel.x;
+      ball.vel.y = _chaosStatus["Sticky Situation"] ? 0 : ball.vel.y;
     }
-    int yThresh = (_tableWidth - 75) / 2;
-    int ballBottom = ball.pos.y - ballRadius;
-    int ballTop = ball.pos.y + ballRadius;
+    float yThresh = (_tableWidth - 75) / 2.0f;
+    float ballBottom = ball.pos.y - ballRadius;
+    float ballTop = ball.pos.y + ballRadius;
     if (ball.pos.y < -yThresh || ball.pos.y > yThresh)
     {
       ball.pos.y += (ballBottom < -xThresh) ? -yThresh - ballBottom : 0;
       ball.pos.y += (ballTop > xThresh) ? yThresh - ballTop : 0;
-      ball.vel.y = _chaosEffectStatus["Sticky Situation"] ? 0 : -ball.vel.y;
-      ball.vel.x = _chaosEffectStatus["Sticky Situation"] ? 0 : ball.vel.x;
+      ball.vel.y = _chaosStatus["Sticky Situation"] ? 0 : -ball.vel.y;
+      ball.vel.x = _chaosStatus["Sticky Situation"] ? 0 : ball.vel.x;
     }
   }
 
-  void holeDetection(Ball& ball)
+  bool holeDetection(Ball& ball)
   {
     for (int i = 0; i < 6; i++)
     {
       if (length(_holes[i] - ball.pos) < _viewVolumeSide / 150)
       {
         _congratsMessage = congratsMessages[ball.id];
-        vec3 glorbPos = vec3(0, 0, 200);
-        ball.vel = 0.5f * (glorbPos - ball.pos) * vec3(-1, 1, 1);
-        ball.size *= 2;
-        _numBallsSunk += 1;
         _congratsStartTime = elapsedTime() + 1;
+        _numBallsSunk += 1;
         if (_numBallsSunk == 16) _endGame = true;
+        ball.vel = 0.5f * (_glorbPos - ball.pos);
+        ball.size *= 2;
+        return true;
       }
       else if (length(_holes[i] - ball.pos) < _viewVolumeSide / 50)
       {
         ball.vel = 10.0f * (_holes[i] - ball.pos);
+        return true;
       }
     }
+    return false;
   }
 
   void endGame() {
@@ -298,7 +381,7 @@ public:
         string message = "I don't feel so good...";
         float x = width() / 2 - renderer.textWidth(message) * 0.5f;
         float y = height() * 0.94 + renderer.textHeight() * 0.25f;
-        renderer.text("I don't feel so good...", x, y);
+        renderer.text(message, x, y);
       }
       if (timer > 10 && timer <= 15) _eyeDiameterModifier += 0.005;
       if (timer > 15) {
@@ -314,37 +397,13 @@ public:
   {
     float closestDist = 99999999;
     int closestDistIdx = -1;
-    vec2 clickScreenPos = vec2(clickX, clickY);    
-    // // vec4 clickProjPos = vec4(0, 0, 1, 1);
-    // vec4 clickProjPos = vec4(0, 0, -1, 1);
-    // clickProjPos.x = (clickX / width() - 0.5f) * 2;
-    // clickProjPos.y = ((height() - clickY) / height() - 0.5f) * 2;
-    // // clickProjPos.x = (clickX / width() - 0.5f) * 250;
-    // // clickProjPos.y = ((height() - clickY) / height() - 0.5f) * 250;
-    // // clickProjPos *= 250;
-    // cout << clickProjPos << endl;
-    // vec4 clickEyePos = inverse(renderer.projectionMatrix()) * clickProjPos;
-    // // clickEyePos = vec4(vec2(clickEyePos), -1.0f, 1.0f) ;
-    // // clickEyePos /= clickEyePos.w;
-    // cout << clickEyePos << endl;
-    // vec4 clickWorldPos = inverse(renderer.viewMatrix()) * clickEyePos;
-    // clickWorldPos /= clickWorldPos.w;
-    // // clickWorldPos *= 250;
-    // cout << clickWorldPos << endl;
+    vec2 clickPos = vec2(clickX, clickY);
     for (int i = 0; i < _numBalls; i++)
     {
-      vec4 ballWorldPos = vec4(_balls[i].pos, 1.0);
-      vec4 ballEyePos = renderer.viewMatrix() * ballWorldPos;
-      vec4 ballProjPos = renderer.projectionMatrix() * ballEyePos;
-      ballProjPos /= ballProjPos.w;
-      vec2 ballScreenPos;
-      ballScreenPos.x = (ballProjPos.x + 1.0f) * width() / 2;
-      ballScreenPos.y = (1.0f - ballProjPos.y) * height() / 2;
-      // cout << i << ") " << ballScreenPos << " vs " << clickX << " " << clickY << " dist: " << length(ballScreenPos - vec2(clickX, clickY)) << endl;
-      if (length(ballScreenPos - clickScreenPos) < _ballDefaultSize)
+      vec2 ballPos = worldToScreen(_balls[i].pos, true);
+      float dist = length(ballPos - clickPos);
+      if (dist < _ballDefaultSize)
       {
-        // cout << "threshold crossed" << endl;
-        float dist = length(ballScreenPos - clickScreenPos);
         if (dist < closestDist)
         {
           closestDist = dist;
@@ -353,8 +412,17 @@ public:
         }
       }
     }
-    cout << endl;
     return closestDistIdx;
+  }
+
+  vec2 worldToScreen(vec3 worldPos, bool flipY) {
+    vec4 eyePos = renderer.viewMatrix() * vec4(worldPos, 1.0);
+    vec4 projPos = renderer.projectionMatrix() * eyePos;
+    projPos /= projPos.w;
+    float screenX = (projPos.x + 1.0f) * width() / 2;
+    float screenY = (projPos.y + 1.0f) * height() / 2;
+    if (flipY) screenY = (1.0f - projPos.y) * height() / 2;
+    return vec2(screenX, screenY);
   }
 
   void drawPoolTable()
@@ -380,21 +448,10 @@ public:
       renderer.setUniform("MaterialColor", vec4(1));
       renderer.texture("Image", "cue-stick");
       renderer.push();
-      // center cue stick, align it horizontally, and scale to fit view volume
       renderer.translate(-_launchVel * 0.2f);
       renderer.translate(-_launchVel * (0.5f * _stickLength / length(_launchVel)));
-      // cout << _launchVel << " " << -_launchVel * (0.5f * _stickLength / length(_launchVel)) << endl;
-      // vec4 ballWorldPos = vec4(_balls[_activeBall].pos, 1.0);
-      // vec4 ballEyePos = renderer.viewMatrix() * ballWorldPos;
-      // vec4 ballProjPos = renderer.projectionMatrix() * ballEyePos;
-      // ballProjPos /= ballProjPos.w;
-      // vec3 ballScreenPos;
-      // ballScreenPos.x = (ballProjPos.x + 1.0f) * width() / 2;
-      // ballScreenPos.y = (1.0f - ballProjPos.y) * height() / 2;
-      // ballScreenPos.z = 0;
       renderer.translate(_balls[_activeBall].pos);
       renderer.rotate(vec3(0, 0, atan2(_launchVel.y, _launchVel.x) - M_PI_2));
-      // renderer.translate(vec3(0, 0, 50));
       renderer.scale(_stickScaleVector);
       renderer.rotate(vec3(0, M_PI_2, M_PI_2));
       renderer.translate(_stickCenterVector);
@@ -447,10 +504,10 @@ public:
     renderer.setUniform("EyeOfSauron", true);
     renderer.texture("Image", "eye");
     renderer.push();
-    renderer.translate(vec3(0, 0, 200));
+    renderer.translate(_glorbPos);
     vec3 n;
     if ((!_launching && length(_balls[_activeBall].vel) < 5) || _orbiting) {
-      n = normalize(_camPos - vec3(0, 0, 200));
+      n = normalize(_camPos - _glorbPos);
       float thetaZ = atan2(n.y, -n.x) + M_PI_2;
       vec3 x2 = vec3(cos(thetaZ), -sin(thetaZ), 0);
       vec3 y2 = vec3(sin(thetaZ), cos(thetaZ), 0);
@@ -458,7 +515,7 @@ public:
       mat3 R_z = mat3(x2, y2, z2);
       renderer.rotate(R_z);
     } else {
-      n = normalize(_balls[_activeBall].pos - vec3(0, 0, 200));
+      n = normalize(_balls[_activeBall].pos - _glorbPos);
       float thetaY = atan2(n.z, n.x) + M_PI_2;
       vec3 x2 = vec3(cos(thetaY), 0, sin(thetaY));
       vec3 y2 = vec3(0, 1, 0);
@@ -483,7 +540,7 @@ public:
 
   void chaos()
   {
-    if (_chaosEffectStatus["Hover Havoc"])
+    if (_chaosStatus["Hover Havoc"])
     {
       for (int i = 0; i < _numBalls; i++)
       {
@@ -498,17 +555,17 @@ public:
     int frame = int(_time * 30);
     if (frame % newEffectThresh == 0)
     {
-      _chaosAnimStartTime = elapsedTime() + 1;
+      _chaosAnimStart = elapsedTime() + 1;
       _chaosAnimation = true;
       string effect = _chaosEffects[rand() % _chaosEffects.size()];
-      for (auto it = _chaosEffectStatus.begin(); it != _chaosEffectStatus.end(); it++)
+      for (auto it = _chaosStatus.begin(); it != _chaosStatus.end(); it++)
       {
         if (it->first == effect)
         {
           if (it->second == false)
           {
-            _chaosEffectStatus[it->first] = true;
-            _activeChaosEffect = effect;
+            _chaosStatus[it->first] = true;
+            _chaosEffect = effect;
             if (effect == "Hover Havoc")
             {
               gravityChaos();
@@ -523,7 +580,7 @@ public:
         {
           if (it->second == true)
           {
-            _chaosEffectStatus[it->first] = false;
+            _chaosStatus[it->first] = false;
             if (it->first == "Hover Havoc")
             {
               resetGravity();
@@ -536,7 +593,7 @@ public:
         }
       }
     }
-    if (elapsedTime() - _chaosAnimStartTime > 3)
+    if (elapsedTime() - _chaosAnimStart > 2)
     {
       _chaosAnimation = false;
     }
@@ -569,7 +626,7 @@ public:
       {
         float prevSize = _balls[i].size;
         (rand() % 2)? _balls[i].size *= 3 : _balls[i].size /= 3; 
-        _balls[i].pos.z += _sphereDefaultRadius * (_balls[i].size - prevSize);
+        _balls[i].pos.z += _sphereRadius * (_balls[i].size - prevSize);
       }
     }
   }
@@ -580,7 +637,7 @@ public:
     {
       float prevSize = _balls[i].size;
       _balls[i].size = _ballDefaultSize;
-      _balls[i].pos.z += _sphereDefaultRadius * (_balls[i].size - prevSize);
+      _balls[i].pos.z += _sphereRadius * (_balls[i].size - prevSize);
     }
   }
 
@@ -596,7 +653,8 @@ public:
     renderer.setUniform("Rows", numRows);
     renderer.setUniform("Cols", numCols);
     renderer.setUniform("TopToBottom", false);
-    renderer.sprite(vec3(0, 250, 100), vec4(1.0f), 250.0);
+    // renderer.sprite(vec3(0, 250, 100), vec4(1.0f), 250.0);
+    renderer.sprite(vec3(0, -200, -20), vec4(1.0f), 50.0);
     renderer.endShader();
     renderer.setDepthTest(true);
     renderer.blendMode(agl::DEFAULT);
@@ -636,20 +694,10 @@ public:
     renderer.beginShader("fluid");
     renderer.setUniform("Resolution", vec2(width(), height()));
     renderer.setUniform("Time", elapsedTime());
-    // vec4 ballEyePos = renderer.viewMatrix() * vec4(_balls[_activeBall].pos, 1.0);
-    // vec4 ballEyePos = vec4(_balls[_activeBall].pos, 1.0);
-    // renderer.setUniform("BallPos", vec3(ballEyePos.x + 250, ballEyePos.y + 250, ballEyePos.z));
-
-    vec4 ballWorldPos = vec4(_balls[_activeBall].pos, 1.0);
-    vec4 ballEyePos = renderer.viewMatrix() * ballWorldPos;
-    vec4 ballProjPos = renderer.projectionMatrix() * ballEyePos;
-    ballProjPos /= ballProjPos.w;
-    vec2 ballScreenPos;
-    ballScreenPos.x = (ballProjPos.x + 1.0f) * width() / 2;
-    ballScreenPos.y = (ballProjPos.y + 1.0f) * height() / 2;
-    renderer.setUniform("BallPos", vec3(ballScreenPos, 1));
+    vec2 ballPos = worldToScreen(_balls[_activeBall].pos, false);
+    renderer.setUniform("BallPos", vec3(ballPos, 1));
     renderer.push();
-    renderer.translate(vec3(0, 0, -7.5));
+    renderer.translate(vec3(0, 0, -10));
     renderer.scale(vec3(_tableLength - 50, _tableWidth - 50, 1.0));
     renderer.rotate(vec3(0, 0, M_PI_2));
     renderer.translate(vec3(-0.5, -0.5, 0.0));
@@ -724,12 +772,12 @@ public:
       }
       if (_orbiting)
       {
-        pan(dx, dy);
+        orbit(dx, dy);
       }
     }
   }
 
-  void pan(float dx, float dy)
+  void orbit(float dx, float dy)
   {
     float ONE_DEG = 0.017;
     _elevation += dy * (M_PI / 180);
@@ -767,7 +815,7 @@ public:
       _leftClick = false;
       if (_launching)
       {
-        if (_chaosEffectStatus["Get Gaslit"])
+        if (_chaosStatus["Get Gaslit"])
         {
           _balls[_activeBall].vel = vec3(_launchVel.x, -_launchVel.y, _launchVel.z);
         }
@@ -821,7 +869,7 @@ public:
   void draw()
   {
     float aspect = width() / height();
-    renderer.perspective(glm::radians(60.0f), aspect, 0.1f, _viewVolumeSide * 10);
+    renderer.perspective(glm::radians(60.0f), aspect, 0.1f, _viewVolumeSide * _skyBoxSize);
     // renderer.ortho(0, width(), 0, height(), -_radius, _radius);
     // cout << renderer.projectionMatrix() << endl << endl;
 
@@ -832,35 +880,43 @@ public:
 
     _time += dt();
 
+    if (_startGame) startGame();
+    else _glorbPos.z = 200;
+
     if (elapsedTime() - _congratsStartTime < 5)
     {
       renderer.fontSize(width() / 20);
       float x = width() / 2 - renderer.textWidth(_congratsMessage) * 0.5f;
       float y = height() * 0.94 + renderer.textHeight() * 0.25f;
       renderer.text(_congratsMessage, x, y);
+      _glorbPos.z += 0.5 * sin(10 * _time);
+    } else {
+      _glorbPos.z = 200;
     }
     if (elapsedTime() - _congratsStartTime > 1)
     {
       _eyeColor = vec4(1);
     }
 
-    if (_activeChaosEffect == "Plain Jane") {
-      renderer.fontColor(vec4(0, 1, 0, 1));
-    } else {
-      renderer.fontColor(vec4(1, 0, 0, 1));
-    }
-    renderer.fontSize(width() / 15);
-    float x = width() / 2 - renderer.textWidth(_activeChaosEffect) * 0.5f;
-    float y = height() * 0.85 + renderer.textHeight() * 0.25f;
-    renderer.text(_activeChaosEffect, x, y);
-    renderer.fontColor(vec4(0.98, 0.94, 0.82, 1));
-      
+    if (!_endGame) {
+      if (_chaosEffect == "Plain Jane") {
+        renderer.fontColor(vec4(0, 1, 0, 1));
+      } else {
+        renderer.fontColor(vec4(1, 0, 0, 1));
+      }
+      renderer.fontSize(width() / 15);
+      string message = "MODE: " + _chaosEffect;
+      float x = width() / 2 - renderer.textWidth(message) * 0.5f;
+      float y = height() * 0.85 + renderer.textHeight() * 0.25f;
+      renderer.text(message, x, y);
+      renderer.fontColor(vec4(0.98, 0.94, 0.82, 1));
 
-    string message = "BALLS DEVOURED: " + to_string(_numBallsSunk);
-    renderer.fontSize(width() / 20);
-    x = width() * 0.97 - renderer.textWidth(message);
-    y = height() / 10 + renderer.textHeight() * 0.25f;
-    renderer.text(message, x, y);
+      message = "BALLS DEVOURED: " + to_string(_numBallsSunk);
+      renderer.fontSize(width() / 20);
+      x = width() * 0.97 - renderer.textWidth(message);
+      y = height() / 10 + renderer.textHeight() * 0.25f;
+      renderer.text(message, x, y);
+    }
 
     renderer.beginShader("cubemap");
 
@@ -870,7 +926,6 @@ public:
     renderer.push();
     // renderer.rotate(vec3(-M_PI_2, 0, -M_PI));
     // renderer.rotate(vec3(-M_PI_2, 0, 0));
-    if (_chaosAnimation) drawChaosTransition();
     drawPoolTable();
     drawFluid();
     drawCueStick();
@@ -880,18 +935,24 @@ public:
     drawLogo();
     drawEye();
     if (_enableChaos) chaos();
+    if (_chaosAnimation) drawChaosTransition();
     if (_endGame) endGame();
     renderer.pop();
     
     renderer.endShader();
-
+    
+    if (_time - int(_time) < 0.01)
+      cout << int(1/dt()) << " FPS" << endl;
   }
 
 protected:
   int _viewVolumeSide = 500;
   int _radius = 500;
-  float _sphereDefaultRadius = 0.5;
+  float _sphereRadius = 0.5;
   float _ballDefaultSize = _viewVolumeSide / 20;
+  int _skyBoxSize = 10;
+
+  bool _startGame = true;
 
   vec3 _camPos = vec3(0, 0, -_viewVolumeSide);
   vec3 _lookPos = vec3(0, 0, 0);
@@ -929,17 +990,18 @@ protected:
   int _eyeDiameter;
   float _eyeDiameterModifier = 0.25;
   vec4 _eyeColor = vec4(1);
+  vec3 _glorbPos = vec3(0, 0, 200);
 
 
   vector<string> _chaosEffects = {"Plain Jane", "Sticky Situation", "Hover Havoc", "Biggie Smalls", "Friction Affliction", "Tilt-a-Table", "Get Gaslit"};
-  map<string, bool> _chaosEffectStatus;
-  string _activeChaosEffect = "Plain Jane";
+  map<string, bool> _chaosStatus;
+  string _chaosEffect = "Plain Jane";
   float _time = 0.0f;
-  bool _enableChaos = true;
+  bool _enableChaos = false;
   bool _chaosAnimation = false;
-  float _chaosAnimStartTime = 9999;
+  float _chaosAnimStart = 9999;
 
-  float _congratsStartTime = 9999;
+  float _congratsStartTime = -9999;
   string _congratsMessage;
 
   vector<string> congratsMessages = {
