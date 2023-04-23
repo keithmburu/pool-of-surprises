@@ -391,7 +391,8 @@ public:
     vec2 clickPos = vec2(clickX, clickY);
     for (int i = 0; i < _numBalls; i++)
     {
-      vec2 ballPos = worldToScreen(_balls[i].pos, false);
+      // vec2 ballPos = worldToScreen(_balls[i].pos, false);
+      vec2 ballPos = worldToScreen(_balls[i].pos, !_flipY);
       float dist = length(ballPos - clickPos);
       if (dist < _ballDefaultSize)
       {
@@ -462,7 +463,7 @@ public:
       renderer.translate(_balls[i].pos);
       renderer.rotate(_balls[i].rot);
       // renderer.rotate(vec3(0, M_PI_2, M_PI_2));
-      renderer.rotate(vec3(0, 0, 0));
+      renderer.rotate(vec3(0, 0, M_PI));
       renderer.scale(vec3(_balls[i].size));
       renderer.sphere();
       renderer.pop();
@@ -643,21 +644,11 @@ public:
     renderer.push();
     renderer.beginShader("texture");
     renderer.texture("Image", "logo");
-    // renderer.sprite(vec3(-100, -100, 200), vec4(1.0f), 150.0);
-    float xPos = _viewVolumeSide / 3;
+    float xPos = _viewVolumeSide / 2.75;
     float yPos = -_viewVolumeSide / 6.7;
-    float zPos = _viewVolumeSide / 4;
+    float zPos = _viewVolumeSide / 3.5;
     renderer.translate(vec3(xPos, yPos, zPos));
-    // vec3 n = normalize(_camPos - vec3(-250, 0, 75));
-    // float thetaX = clamp(atan2(n.z, -n.y) - M_PI_2, -M_PI_2, 0.0);
-    // vec3 x1 = vec3(1, 0, 0);
-    // vec3 y1 = vec3(0, cos(thetaX), -sin(thetaX));
-    // vec3 z1 = vec3(0, sin(thetaX), cos(thetaX));
-    // mat3 R_x = mat3(x1, y1, z1);
-    // renderer.rotate(R_x);
-
     vec3 logoPos = vec3(xPos, yPos, zPos);
-    // vec3 logoPos = vec3(0);
     vec3 lookPos = vec3(_camPos.x, -_camPos.z, _camPos.y);
     vec3 z = normalize(lookPos - logoPos);
     vec3 x = normalize(cross(vec3(0, 0, 1), z));
@@ -666,7 +657,7 @@ public:
     renderer.rotate(R);
 
     // renderer.rotate(vec3(0, M_PI_2, 0));
-    renderer.scale(vec3(_viewVolumeSide / 3.5));
+    renderer.scale(vec3(_viewVolumeSide / 3));
     renderer.translate(vec3(-0.5, -0.5, 0));
     renderer.setDepthTest(false);
     renderer.blendMode(agl::BLEND);
@@ -687,8 +678,9 @@ public:
     renderer.beginShader("fluid");
     renderer.setUniform("Resolution", vec2(width(), height()));
     renderer.setUniform("Time", elapsedTime());
-    vec2 ballPos = worldToScreen(_balls[_activeBall].pos, true);
-    renderer.setUniform("BallPos", _balls[_activeBall].pos);
+    vec3 ballPos = vec3(worldToScreen(_balls[_activeBall].pos, _flipY), 1);
+    // vec3 ballPos = _balls[_activeBall].pos;
+    renderer.setUniform("BallPos", ballPos);
     renderer.push();
     renderer.translate(vec3(0, 0, -20));
     renderer.scale(vec3(_tableLength - 50, _tableWidth - 50, 1.0));
@@ -741,7 +733,7 @@ public:
     {
       if (_launching)
       {
-        _launchVel += vec3(dx, -dy, 0);
+        _launchVel += _flipY? vec3(dx, -dy, 0) : vec3(-dx, dy, 0);
         for (int i = 0; i < _trajectoryBalls.size(); i++)
         {
           _trajectoryBalls[i].pos = _balls[_activeBall].pos + ((1.0f / (i + 1)) * _launchVel);
@@ -755,7 +747,7 @@ public:
           _activeBall = closestDistIdx;
           _balls[_activeBall].vel = vec3(0);
           _balls[_activeBall].color /= 2.0f;
-          _launchVel = vec3(dx, -dy, 0);
+          _launchVel = _flipY? vec3(dx, -dy, 0) : vec3(-dx, dy, 0);
           createTrajecBalls();
         }
         else
@@ -791,6 +783,8 @@ public:
     {
       _azimuth = 2 * M_PI;
     }
+    _flipY = !(_azimuth < M_PI_2 || _azimuth > 1.5 * M_PI);
+    // cout << _flipY << endl;
   }
 
   void mouseDown(int button, int mods)
@@ -861,6 +855,8 @@ public:
       _endGame = true;
     } else if (key == GLFW_KEY_S) {
       _startGame = false;
+      _showLogo = true;
+      _elevation = M_PI_4 * 0.75;
     }
   }
 
@@ -951,6 +947,7 @@ protected:
 
   bool _startGame = true;
   bool _showLogo = false;
+  bool _flipY = true;
 
   vec3 _camPos;
   vec3 _lookPos = vec3(0, 0, 0);
