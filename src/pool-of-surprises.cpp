@@ -364,15 +364,15 @@ public:
     _showLogo = false;
     float timer = elapsedTime() - _congratsStartTime;
     string message; float x; float y;
-    if (timer > 4) {
+    if (timer > 5) {
       _showLogo = false;
-      if (timer < 8) {
+      if (timer < 9) {
         renderer.fontSize(width() / 13);
         message = "\"I don't feel so good...\"";
         x = width() / 2 - renderer.textWidth(message) * 0.5f;
         y = height() * 0.9 + renderer.textHeight() * 0.25f;
         renderer.text(message, x, y);
-      } else if (timer < 12) {
+      } else if (timer < 13) {
         _eyeDiameterModifier += (width() / 500) * 0.008;
       } else {
         renderer.fontSize(width() / 3);
@@ -644,16 +644,30 @@ public:
     renderer.beginShader("texture");
     renderer.texture("Image", "logo");
     // renderer.sprite(vec3(-100, -100, 200), vec4(1.0f), 150.0);
-    renderer.translate(vec3(-250, 0, 75));
-    vec3 n = normalize(_camPos - vec3(-250, 0, 75));
-    float thetaX = clamp(atan2(n.z, -n.y) - M_PI_2, -M_PI_2, 0.0);
-    vec3 x1 = vec3(1, 0, 0);
-    vec3 y1 = vec3(0, cos(thetaX), -sin(thetaX));
-    vec3 z1 = vec3(0, sin(thetaX), cos(thetaX));
-    mat3 R_x = mat3(x1, y1, z1);
-    renderer.rotate(R_x);
+    float xPos = _viewVolumeSide / 3;
+    float yPos = -_viewVolumeSide / 6.7;
+    float zPos = _viewVolumeSide / 4;
+    renderer.translate(vec3(xPos, yPos, zPos));
+    // vec3 n = normalize(_camPos - vec3(-250, 0, 75));
+    // float thetaX = clamp(atan2(n.z, -n.y) - M_PI_2, -M_PI_2, 0.0);
+    // vec3 x1 = vec3(1, 0, 0);
+    // vec3 y1 = vec3(0, cos(thetaX), -sin(thetaX));
+    // vec3 z1 = vec3(0, sin(thetaX), cos(thetaX));
+    // mat3 R_x = mat3(x1, y1, z1);
+    // renderer.rotate(R_x);
+
+    vec3 logoPos = vec3(xPos, yPos, zPos);
+    // vec3 logoPos = vec3(0);
+    vec3 lookPos = vec3(_camPos.x, -_camPos.z, _camPos.y);
+    vec3 z = normalize(lookPos - logoPos);
+    vec3 x = normalize(cross(vec3(0, 0, 1), z));
+    vec3 y = normalize(cross(z, x));
+    mat3 R = mat3(x, y, z);
+    renderer.rotate(R);
+
     // renderer.rotate(vec3(0, M_PI_2, 0));
-    renderer.scale(vec3(_viewVolumeSide / 3));
+    renderer.scale(vec3(_viewVolumeSide / 3.5));
+    renderer.translate(vec3(-0.5, -0.5, 0));
     renderer.setDepthTest(false);
     renderer.blendMode(agl::BLEND);
     renderer.setUniform("Color", vec4(0, 0, 0, 0.5));
@@ -674,9 +688,9 @@ public:
     renderer.setUniform("Resolution", vec2(width(), height()));
     renderer.setUniform("Time", elapsedTime());
     vec2 ballPos = worldToScreen(_balls[_activeBall].pos, true);
-    renderer.setUniform("BallPos", vec3(ballPos, 1));
+    renderer.setUniform("BallPos", _balls[_activeBall].pos);
     renderer.push();
-    renderer.translate(vec3(0, 0, -10));
+    renderer.translate(vec3(0, 0, -20));
     renderer.scale(vec3(_tableLength - 50, _tableWidth - 50, 1.0));
     renderer.rotate(vec3(0, 0, M_PI_2));
     renderer.translate(vec3(-0.5, -0.5, 0.0));
