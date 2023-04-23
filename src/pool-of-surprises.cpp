@@ -88,6 +88,7 @@ public:
     renderer.loadShader("billboard-animated", "../shaders/billboard-animated.vs", "../shaders/billboard-animated.fs");
     renderer.loadShader("fluid", "../shaders/fluid.vs", "../shaders/fluid.fs");
     renderer.loadShader("billboard", "../shaders/billboard.vs", "../shaders/billboard.fs");
+    renderer.loadShader("eye", "../shaders/eye-of-sauron.vs", "../shaders/eye-of-sauron.fs");
   }
 
   void loadMeshes()
@@ -142,27 +143,27 @@ public:
 
   void startGame() {
     float timer = elapsedTime();
-    renderer.fontSize(width() / 20);
+    renderer.fontSize(width() / 13);
     string message; float x; float y;
     if (timer < 22) {
       if (timer < 9) {
         message = "Hey, you there!";
-      } else if (timer < 13) {
-        message = "Welcome to Omicron Persei 8, stranger.";
+      } else if (timer < 13.5) {
+        message = "Welcome to Omicron Persei 8, stranger. I'm Glorb.";
       } else if (timer < 17.5) {
         message = "How about a game of pool while you find your bearings?";
-      } else if (timer < 21.5) {
-        message = "I warn you though, it might not be quite like you expect...";
+      } else if (timer < 22) {
+        message = "I warn you, it might not be quite like you expect...";
       }
       x = width() / 2 - renderer.textWidth(message) * 0.5f;
-      y = height() * 0.94 + renderer.textHeight() * 0.25f;
+      y = height() * 0.9 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
       _glorbPos.y += 0.5 * sin(10 * timer);
     } else {
       _showLogo = true;
-      _elevation -= M_PI / 180;
+      _elevation -= (width() / 500) * (M_PI / 180);
     }
-    if (_elevation < -M_PI_4 * 1.25) _startGame = false;
+    if (_elevation < M_PI_4 * 0.75) _startGame = false;
   }
 
   void createPoolBalls()
@@ -226,7 +227,7 @@ public:
         // float glorbRadius = (_viewVolumeSide / 4) * _eyeDiameterModifier * 0.5;
         float glorbRadius = _eyeScaleVector.x * _eyeDiameterModifier * 0.5;
         if (length(_glorbPos - ball.pos) <= glorbRadius) {
-          ball.pos = vec3(0, -1000, 200);
+          ball.pos = vec3(0, 1000, 200);
           ball.vel = vec3(0);
           ball.size = 0;
           // _balls.erase(_balls.begin() + i);
@@ -360,22 +361,25 @@ public:
 
   void endGame() {
     _enableChaos = false;
+    _showLogo = false;
     float timer = elapsedTime() - _congratsStartTime;
-    if (timer > 5) {
+    string message; float x; float y;
+    if (timer > 4) {
       _showLogo = false;
-      if (timer > 8 && timer <= 13) {
-        renderer.fontSize(width() / 20);
-        string message = "I don't feel so good...";
-        float x = width() / 2 - renderer.textWidth(message) * 0.5f;
-        float y = height() * 0.94 + renderer.textHeight() * 0.25f;
+      if (timer < 8) {
+        renderer.fontSize(width() / 13);
+        message = "\"I don't feel so good...\"";
+        x = width() / 2 - renderer.textWidth(message) * 0.5f;
+        y = height() * 0.9 + renderer.textHeight() * 0.25f;
         renderer.text(message, x, y);
-      }
-      if (timer > 10 && timer <= 15) _eyeDiameterModifier += 0.005;
-      if (timer > 15) {
+      } else if (timer < 12) {
+        _eyeDiameterModifier += (width() / 500) * 0.008;
+      } else {
         renderer.fontSize(width() / 3);
-        float x = width() / 2 - renderer.textWidth("FIN") * 0.5f;
-        float y = height() / 2 + renderer.textHeight() * 0.25f;
-        renderer.text("FIN", x, y);
+        message = "FIN";
+        x = width() / 2 - renderer.textWidth(message) * 0.5f;
+        y = height() / 2 + renderer.textHeight() * 0.25f;
+        renderer.text(message, x, y);
       }
     }
   }
@@ -387,7 +391,7 @@ public:
     vec2 clickPos = vec2(clickX, clickY);
     for (int i = 0; i < _numBalls; i++)
     {
-      vec2 ballPos = worldToScreen(_balls[i].pos, true);
+      vec2 ballPos = worldToScreen(_balls[i].pos, false);
       float dist = length(ballPos - clickPos);
       if (dist < _ballDefaultSize)
       {
@@ -492,31 +496,19 @@ public:
     renderer.texture("Image", "eye");
     renderer.push();
     renderer.translate(_glorbPos);
-    vec3 n;
-    if ((!_launching && length(_balls[_activeBall].vel) < 5) || _orbiting) {
-      n = normalize(_camPos - _glorbPos);
-      float thetaZ = atan2(n.y, -n.x) + M_PI_2;
-      vec3 x2 = vec3(cos(thetaZ), -sin(thetaZ), 0);
-      vec3 y2 = vec3(sin(thetaZ), cos(thetaZ), 0);
-      vec3 z2 = vec3(0, 0, 1);
-      mat3 R_z = mat3(x2, y2, z2);
-      renderer.rotate(R_z);
+    vec3 lookPos;
+    // face camera or active ball
+    if (_startGame || (!_launching && length(_balls[_activeBall].vel) < 5) || _orbiting || _endGame) {
+      lookPos = vec3(_camPos.x, -_camPos.z, _camPos.y);
     } else {
-      n = normalize(_balls[_activeBall].pos - _glorbPos);
-      float thetaY = atan2(n.z, n.x) + M_PI_2;
-      vec3 x2 = vec3(cos(thetaY), 0, sin(thetaY));
-      vec3 y2 = vec3(0, 1, 0);
-      vec3 z2 = vec3(-sin(thetaY), 0, cos(thetaY));
-      mat3 R_y = mat3(x2, y2, z2);
-      renderer.rotate(R_y);
+      lookPos = _balls[_activeBall].pos;
     }
-    float thetaX = atan2(n.z, -n.y) + M_PI_2;
-    vec3 x1 = vec3(1, 0, 0);
-    vec3 y1 = vec3(0, cos(thetaX), -sin(thetaX));
-    vec3 z1 = vec3(0, sin(thetaX), cos(thetaX));
-    mat3 R_x = mat3(x1, y1, z1);
-    renderer.rotate(R_x);
-    renderer.rotate(vec3(0, M_PI_2, 0));
+    vec3 z = normalize(lookPos - _glorbPos);
+    vec3 x = normalize(cross(_up, z));
+    vec3 y = normalize(cross(z, x));
+    mat3 R = mat3(x, y, z);
+    renderer.rotate(R);
+    renderer.rotate(vec3(0, -M_PI_2, 0));
     renderer.scale(vec3(_eyeDiameterModifier));
     renderer.scale(_eyeScaleVector);
     renderer.translate(_eyeCenterVector);
@@ -681,7 +673,7 @@ public:
     renderer.beginShader("fluid");
     renderer.setUniform("Resolution", vec2(width(), height()));
     renderer.setUniform("Time", elapsedTime());
-    vec2 ballPos = worldToScreen(_balls[_activeBall].pos, false);
+    vec2 ballPos = worldToScreen(_balls[_activeBall].pos, true);
     renderer.setUniform("BallPos", vec3(ballPos, 1));
     renderer.push();
     renderer.translate(vec3(0, 0, -10));
@@ -697,7 +689,7 @@ public:
 
   void drawSkybox(string cubemapName) {
     renderer.push();
-    renderer.rotate(vec3(M_PI_2, 0, M_PI));
+    // renderer.rotate(vec3(M_PI_2, 0, 0));
     renderer.setUniform("ModelMatrix", renderer.modelMatrix());
     renderer.cubemap("Cubemap", cubemapName);
     renderer.setUniform("Skybox", true);
@@ -735,7 +727,7 @@ public:
     {
       if (_launching)
       {
-        _launchVel += vec3(-dx, dy, 0);
+        _launchVel += vec3(dx, -dy, 0);
         for (int i = 0; i < _trajectoryBalls.size(); i++)
         {
           _trajectoryBalls[i].pos = _balls[_activeBall].pos + ((1.0f / (i + 1)) * _launchVel);
@@ -749,7 +741,7 @@ public:
           _activeBall = closestDistIdx;
           _balls[_activeBall].vel = vec3(0);
           _balls[_activeBall].color /= 2.0f;
-          _launchVel = vec3(-dx, dy, 0);
+          _launchVel = vec3(dx, -dy, 0);
           createTrajecBalls();
         }
         else
@@ -851,7 +843,10 @@ public:
         _balls[i].vel = vec3(0);
       }
     } else if (key == GLFW_KEY_E) {
+      _congratsStartTime = elapsedTime() + 1;
       _endGame = true;
+    } else if (key == GLFW_KEY_S) {
+      _startGame = false;
     }
   }
 
@@ -913,8 +908,7 @@ public:
     setupReflections();
     drawSkybox("shanghai-bund");
     renderer.push();
-    // renderer.rotate(vec3(-M_PI_2, 0, -M_PI));
-    // renderer.rotate(vec3(-M_PI_2, 0, 0));
+    renderer.rotate(vec3(-M_PI_2, 0, 0));
     drawPoolTable();
     drawFluid();
     drawCueStick();
@@ -944,11 +938,11 @@ protected:
   bool _startGame = true;
   bool _showLogo = false;
 
-  vec3 _camPos = vec3(0, 0, -_viewVolumeSide);
+  vec3 _camPos;
   vec3 _lookPos = vec3(0, 0, 0);
   vec3 _up = vec3(0, 1, 0);
-  float _azimuth = 0;
-  float _elevation = 0;
+  float _azimuth = M_PI;
+  float _elevation = M_PI_2 - 0.017;
   float _orbiting = false;
   vec3 _lightPos = vec3(_viewVolumeSide, _viewVolumeSide, _viewVolumeSide);
   vec3 _lightColor = vec3(1.0, 1.0, 1.0);
