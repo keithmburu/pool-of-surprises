@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.8)
-project(collision-physics)
+project(pool-of-surprises)
 
 if (WIN32) # Include win64 platforms
 
@@ -91,8 +91,8 @@ set(SHADERS
     shaders/billboard.fs
     shaders/billboard.vs)
 
-add_executable(collision-physics src/collision-physics.cpp ${SOURCES} ${SHADERS})
-target_link_libraries(collision-physics ${CORE})
+add_executable(pool-of-surprises src/pool-of-surprises.cpp ${SOURCES} ${SHADERS})
+target_link_libraries(pool-of-surprises ${CORE})
 
 if (WIN32)
   source_group("shaders" FILES ${SHADERS})
