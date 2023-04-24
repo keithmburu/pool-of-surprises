@@ -54,7 +54,7 @@ void Game::loadTextures()
   renderer.loadTexture("trajectoryDot", "../textures/pool-balls/ParticleBokeh.png", 0);
   renderer.loadTexture("pool-table", "../textures/pool-table/PoolTable_poolTable_BaseColor.png", 0);
   renderer.loadTexture("cue-stick", "../textures/cue-stick/Cue_diff.png", 0);
-  renderer.loadTexture("explosion", "../textures/sprite-sheets/explosion.png", 0);
+  renderer.loadTexture("fireball", "../textures/sprite-sheets/fireball.png", 0);
   renderer.loadTexture("eye", "../textures/eye-of-sauron/eye.jpg", 0);
   renderer.loadTexture("logo", "../textures/pool-of-surprises-logo.png", 0);
 }
@@ -218,9 +218,6 @@ void Game::updatePoolBalls()
         _eyeColor = vec4(0, 1, 0, 0.5);
       }
     } else {
-      // friction
-      ball.vel *= _chaosStatus["Friction Affliction"] ? 0.8f : 0.99f;
-      if (_chaosStatus["Tilt-a-Table"]) ball.vel += vec3(1, 0, 0);
       bool sinking = holeDetection(ball);
       if (!sinking) {
         bool collided = false;
@@ -230,6 +227,12 @@ void Game::updatePoolBalls()
         }
         ball = _balls[i];
         boundaryDetection(ball);
+        if (_chaosStatus["Tilt-a-Table"]) ball.vel += vec3(1, 0, 0);
+        ball.vel *= _chaosStatus["Friction Affliction"] ? 0.8f : 0.99f;
+        // if not hovering and not floating up to glorb, null z
+        if (ball.pos.z < 40) {
+          ball.vel.z = 0;
+        }
       }
     }
     vec3 dist = ball.vel * dt();
@@ -243,27 +246,32 @@ bool Game::collisionDetection(int i, int j)
 {
   Ball ball1 = _balls[i];
   Ball ball2 = _balls[j];
-  float overlap = _sphereRadius * (ball1.size + ball2.size) - length(ball1.pos - ball2.pos);
-  if (overlap > 0.1)
-  {
-    vec3 normal = normalize(ball1.pos - ball2.pos);
-    ball1.pos += normal * overlap / 2.0f;
-    ball2.pos -= normal * overlap / 2.0f;
-    float ball1Vel = length(ball1.vel);
-    float ball2Vel = length(ball2.vel);
-    if (ball1Vel < ball2Vel) {
-      ball1.vel = (ball1.vel + ball2.vel) / 4.0f;
-      ball2.vel = reflect(ball2.vel, -normal) / 2.0f;
-    } else if (ball1Vel > ball2Vel) {
-      ball1.vel = reflect(ball1.vel, normal) / 2.0f;
-      ball2.vel = (ball1.vel + ball2.vel) / 4.0f;
+  // if not floating up to glorb
+  if (ball2.size != 2 * _ballDefaultSize) {
+    float overlap = _sphereRadius * (ball1.size + ball2.size) - length(ball1.pos - ball2.pos);
+    if (overlap > 0.1)
+    {
+      vec3 normal = normalize(ball1.pos - ball2.pos);
+      ball1.pos += normal * overlap / 2.0f;
+      ball2.pos -= normal * overlap / 2.0f;
+      float ball1Vel = length(ball1.vel);
+      float ball2Vel = length(ball2.vel);
+      if (ball1Vel < ball2Vel) {
+        ball1.vel = (ball1.vel + ball2.vel) / 4.0f;
+        ball2.vel = reflect(ball2.vel, -normal) / 2.0f;
+      } else if (ball1Vel > ball2Vel) {
+        ball1.vel = reflect(ball1.vel, normal) / 2.0f;
+        ball2.vel = (ball1.vel + ball2.vel) / 4.0f;
+      } else {
+        ball1.vel = reflect(ball1.vel, normal);
+        ball2.vel = reflect(ball2.vel, -normal);
+      }
+      _balls[i] = ball1;
+      _balls[j] = ball2;
+      return true;
     } else {
-      ball1.vel = reflect(ball1.vel, normal);
-      ball2.vel = reflect(ball2.vel, -normal);
+      return false;
     }
-    _balls[i] = ball1;
-    _balls[j] = ball2;
-    return true;
   } else {
     return false;
   }
@@ -349,15 +357,18 @@ int Game::launchDetection(int clickX, int clickY)
   vec2 clickPos = vec2(clickX, clickY);
   for (int i = 0; i < _numBalls; i++)
   {
-    vec2 ballPos = worldToScreen(_balls[i].pos, false);
-    float dist = length(ballPos - clickPos);
-    if (dist < _ballDefaultSize)
-    {
-      if (dist < closestDist)
+    // if not floating up to glorb
+    if (_balls[i].size != 2 * _ballDefaultSize) {
+      vec2 ballPos = worldToScreen(_balls[i].pos, false);
+      float dist = length(ballPos - clickPos);
+      if (dist < _ballDefaultSize)
       {
-        closestDist = dist;
-        closestDistIdx = i;
-        _launching = true;
+        if (dist < closestDist)
+        {
+          closestDist = dist;
+          closestDistIdx = i;
+          _launching = true;
+        }
       }
     }
   }
@@ -431,14 +442,26 @@ void Game::drawTrajectoryDots()
 {
   if (_launching)
   {
-    renderer.texture("Image", "trajectoryDot");
     renderer.setDepthTest(false);
     renderer.blendMode(agl::ADD);
-    renderer.beginShader("sprite");
+    renderer.beginShader("texture");
+    // renderer.beginShader("sprite");
+    renderer.setUniform("Color", vec4(1));
+    renderer.texture("Image", "trajectoryDot");
     for (int i = 0; i < _trajectoryDots.size(); i++)
     {
-      renderer.sprite(_trajectoryDots[i], vec4(0.8),
-                      5 + (4 - i), 0.0);
+      renderer.push();
+      renderer.translate(_trajectoryDots[i]);
+      renderer.scale(vec3(5 + (4 - i)));
+      vec3 z = normalize(_up - _trajectoryDots[i]);
+      vec3 x = normalize(cross(_up , z));
+      vec3 y = normalize(cross(z, x));
+      mat3 R = mat3(x, y, z);
+      renderer.rotate(R);
+      renderer.quad();
+      renderer.pop();
+      // renderer.sprite(_trajectoryDots[i], vec4(0.8),
+      //                 5 + (4 - i), 0.0);
     }
     renderer.endShader();
     renderer.setDepthTest(true);
@@ -480,20 +503,24 @@ void Game::chaos()
   {
     for (int i = 0; i < _numBalls; i++)
     {
-      if (_balls[i].pos.z >= 40)
+      // if floating but not going up to glorb
+      if (_balls[i].pos.z >= 40 && _balls[i].size != 2 * _ballDefaultSize)
       {
         _balls[i].pos.z = 50.0f + 10 * sin(elapsedTime());
       }
     }
   }
 
-  int newEffectThresh = 500;
+  int newEffectThresh = 250;
   int frame = int(_time * 30);
-  if (frame % newEffectThresh == 0)
+  if (frame % newEffectThresh == 0 && !_startGame && !_endGame)
   {
     _chaosAnimStart = elapsedTime() + 1;
     _chaosAnimation = true;
     string effect = _chaosEffects[rand() % _chaosEffects.size()];
+    while (effect == _chaosEffect) {
+      effect = _chaosEffects[rand() % _chaosEffects.size()];
+    } 
     for (auto it = _chaosStatus.begin(); it != _chaosStatus.end(); it++)
     {
       if (it->first == effect)
@@ -539,7 +566,8 @@ void Game::gravityChaos()
 {
   for (int i = 0; i < _numBalls; i++)
   {
-    if (rand() % 4 == 0)
+    // if not floating up to glorb
+    if (rand() % 4 == 0 && _balls[i].size != 2 * _ballDefaultSize)
     {
       _balls[i].pos.z = 50.0f + 10 * sin(elapsedTime());
     }
@@ -560,9 +588,12 @@ void Game::sizeChaos()
   {
     if (rand() % 4 == 0)
     {
-      float prevSize = _balls[i].size;
-      (rand() % 2)? _balls[i].size *= 3 : _balls[i].size /= 3; 
-      _balls[i].pos.z += _sphereRadius * (_balls[i].size - prevSize);
+      // if not floating up to glorb
+      if (_balls[i].size != 2 * _ballDefaultSize) {
+        float prevSize = _balls[i].size;
+        (rand() % 2)? _balls[i].size *= 3 : _balls[i].size /= 2; 
+        _balls[i].pos.z += _sphereRadius * (_balls[i].size - prevSize);
+      }
     }
   }
 }
@@ -581,15 +612,18 @@ void Game::drawChaosTransition() {
   renderer.setDepthTest(false);
   renderer.blendMode(agl::ADD);
   renderer.beginShader("billboard-animated");
-  renderer.texture("Image", "explosion");
-  int numRows = 8;
-  int numCols = 16;
+  renderer.texture("Image", "fireball");
+  int numRows = 2;
+  int numCols = 8;
   int frame = int(_time * 30) % (numRows * numCols);
   renderer.setUniform("Frame", frame);
   renderer.setUniform("Rows", numRows);
   renderer.setUniform("Cols", numCols);
   renderer.setUniform("TopToBottom", false);
-  renderer.sprite(vec3(0, -200, -20), vec4(1.0f), 50.0);
+  renderer.push();
+  renderer.rotate(vec3(0, M_PI, _azimuth - M_PI));
+  renderer.sprite(vec3(0, -0.4* _viewVolumeSide, 0), vec4(1.0f), 0.6 * _viewVolumeSide, 0.0);
+  renderer.pop();
   renderer.endShader();
   renderer.setDepthTest(true);
   renderer.blendMode(agl::DEFAULT);
@@ -673,7 +707,9 @@ void Game::mouseMotion(int x, int y, int dx, int dy)
   {
     if (_launching)
     {
-      _launchVel += _flipY? vec3(dx, -dy, 0) : vec3(-dx, dy, 0);
+      vec4 addVel = vec4(-dx, dy, 0, 0);
+      addVel = glm::rotate(mat4(1.0), _azimuth, vec3(0, 0, 1)) * addVel;
+      _launchVel += vec3(addVel);
       for (int i = 0; i < _trajectoryDots.size(); i++)
       {
         _trajectoryDots[i] = _balls[_activeBall].pos + ((1.0f / (i + 1)) * _launchVel);
@@ -687,7 +723,9 @@ void Game::mouseMotion(int x, int y, int dx, int dy)
         _activeBall = closestDistIdx;
         _balls[_activeBall].vel = vec3(0);
         _balls[_activeBall].color /= 2.0f;
-        _launchVel = _flipY? vec3(dx, -dy, 0) : vec3(-dx, dy, 0);
+        vec4 launchVel = vec4(-dx, dy, 0, 0);
+        launchVel = glm::rotate(mat4(1.0), _azimuth, vec3(0, 0, 1)) * launchVel;
+        _launchVel = vec3(launchVel);
         createTrajectoryDots();
       }
       else
@@ -796,7 +834,9 @@ void Game::keyUp(int key, int mods)
     _startGame = false;
     _showLogo = true;
     _elevation = M_PI_4 * 0.75;
-  }
+  } else if (key == GLFW_KEY_X) {
+     screenshot("../demo/screenshot-" + std::to_string(rand() % 10000) + ".png");
+  } 
 }
 
 void Game::draw()
@@ -856,6 +896,7 @@ void Game::draw()
   drawSkybox("shanghai-bund");
   renderer.push();
   renderer.rotate(vec3(-M_PI_2, 0, 0));
+  if (_chaosAnimation) drawChaosTransition();
   drawPoolTable();
   drawFluid();
   drawCueStick();
@@ -865,7 +906,6 @@ void Game::draw()
   if (_showLogo) drawLogo();
   drawEye();
   if (_enableChaos) chaos();
-  if (_chaosAnimation) drawChaosTransition();
   if (_endGame) endGame();
   renderer.pop();
   
