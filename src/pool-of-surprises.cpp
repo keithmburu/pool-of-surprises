@@ -251,6 +251,7 @@ public:
           {
             collided = collisionDetection(i, j);
           }
+          ball = _balls[i];
           boundaryDetection(ball);
         }
       }
@@ -272,46 +273,21 @@ public:
       vec3 normal = normalize(ball1.pos - ball2.pos);
       ball1.pos += normal * overlap / 2.0f;
       ball2.pos -= normal * overlap / 2.0f;
-      // cout << "collision " << elapsedTime() << endl;
-      // ball1.vel = 2 * dot(ball1.vel, normal) * normal - ball1.vel;
-      // vec3 relativeVel = (ball2.vel - ball1.vel) / 2.0f;
-      // vec3 newRelativeVel = reflect(relativeVel, normal);
-      // ball1.vel = newRelativeVel;
-      // vec3 beginningSumOfVels = ball1.vel + ball2.vel;
-      // if (length(ball1.vel) >= 25 || length(ball2.vel) >= 25) {
-      //   cout << ball1.vel << " vs " << ball2.vel << endl;
-      // }
-      if (length(ball1.vel) >= 25 && length(ball2.vel) >= 25) {
+      float ball1Vel = length(ball1.vel);
+      float ball2Vel = length(ball2.vel);
+      if (ball1Vel >= 10 && ball2Vel >= 10) {
         ball1.vel = reflect(ball1.vel, normal);
         ball2.vel = reflect(ball2.vel, -normal);
-        // cout << "both reflect" << endl;
-      } else if (length(ball1.vel) < 25 && length(ball2.vel) >= 25) {
+      } else if (ball1Vel < 10 && ball2Vel >= 10) {
         ball1.vel = ball2.vel / 2.0f;
         ball2.vel = reflect(ball2.vel, -normal) / 2.0f;
-        // cout << "ball2 reflects" << endl;
-      } else if (length(ball2.vel) < 25 && length(ball1.vel) >= 25) {
-        // cout << ball2.vel;
+      } else if (ball2Vel < 10 && ball1Vel >= 10) {
         ball2.vel = ball1.vel / 2.0f;
-        // cout << " vs " << ball2.vel;
         ball1.vel = reflect(ball1.vel, normal) / 2.0f;
-        // cout << " vs " << ball2.vel << endl;
-        // cout << "ball reflects" << endl;
       }
-      // if (length(ball1.vel) >= 25 || length(ball2.vel) >= 25) {
-      //   cout << ball1.vel << " vs " << ball2.vel << endl << endl;
-      // }
-      // ball1.vel = (ball2.vel - ball1.vel) / 2.0f;
-      // ball2.vel = (ball1.vel - ball2.vel) / 2.0f;
       _balls[i] = ball1;
       _balls[j] = ball2;
       return true;
-      // vec3 endingSumOfVels = ball1.vel + ball2.vel;
-      // cout << beginningSumOfVels << " vs " << endingSumOfVels << endl;
-      // newRelativeVel = reflect(-relativeVel, -normal);
-      // ball2.vel = newRelativeVel;
-      // ball1.vel = (ball2.vel - ball1.vel) / 2.0f;
-      // if (length(ball2.vel) != 0) ball1.vel = ball2.vel;
-      // else ball1.vel = vec3(ball1.vel.x, ball1.vel.x, 1.0);
     } else {
       return false;
     }
@@ -999,7 +975,8 @@ protected:
   float _orbiting = false;
 
   std::vector<Ball> _balls;
-  int _numBalls = 16;
+  // int _numBalls = 16;
+  int _numBalls = 3;
   int _numBallsSunk = 0;
 
   bool _leftClick = false;
