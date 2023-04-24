@@ -2,7 +2,7 @@
  * @file pool-of-surprises.cpp
  * @author Keith Mburu
  * @date 2023-04-18
- * @brief Implements a version of pool that's not quite right
+ * @brief Implements an alternate version of pool
  */
 
 #include <cmath>
@@ -23,6 +23,7 @@ struct Ball
 {
   int id;
   vec3 pos;
+  vec2 screenPos;
   vec3 vel;
   vec3 rot;
   vec4 color;
@@ -48,6 +49,7 @@ public:
     loadMeshes();
 
     createPoolBalls();
+    updateScreenPos();
     createHoles();
 
     for (string effect : _chaosEffects)
@@ -62,7 +64,7 @@ public:
     {
       renderer.loadTexture("ball_" + to_string(i + 1), "../textures/pool-balls/ball_" + to_string(i + 1) + ".png", 0);
     }
-    renderer.loadTexture("trajectoryBall", "../textures/pool-balls/ParticleBokeh.png", 0);
+    renderer.loadTexture("trajectoryDot", "../textures/pool-balls/ParticleBokeh.png", 0);
     renderer.loadTexture("pool-table", "../textures/pool-table/PoolTable_poolTable_BaseColor.png", 0);
     renderer.loadTexture("pool-table-normal", "../textures/pool-table/PoolTable_poolTable_Normal.png", 0);
     renderer.loadTexture("cue-stick", "../textures/cue-stick/Cue_diff.png", 0);
@@ -173,17 +175,17 @@ public:
     for (int i = 0; i < _numBalls; i++)
     {
       Ball ball;
-      ball.id = i;
-      float theta = ((float) i / _numBalls) * M_PI;
-      float r = a * cos(k * theta);
-      ball.pos.x = r * cos(theta);
-      ball.pos.y = r * sin(theta);
-      // ball.pos.x = pow(-1, rand()) * (rand() % ((_tableLength - 100) / 2));
-      // ball.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
-      // ball.pos.x = (float(i + 1) / _numBalls) * (_tableLength - 100);
-      // ball.pos.x -= _tableLength / 2 - 50;
-      // ball.pos.y = (float(i + 1) / _numBalls) * (_tableWidth - 100);
-      // ball.pos.y -= _tableWidth / 2 - 50;
+      ball.id = i + 1;
+      // float theta = ((float) i / _numBalls) * M_PI;
+      // float r = a * cos(k * theta);
+      // ball.pos.x = r * cos(theta);
+      // ball.pos.y = r * sin(theta);
+      ball.pos.x = pow(-1, rand()) * (rand() % ((_tableLength - 100) / 2));
+      ball.pos.y = pow(-1, rand()) * (rand() % ((_tableWidth - 100) / 2));
+      ball.pos.x = (float(i + 1) / _numBalls) * (_tableLength - 100);
+      ball.pos.x -= _tableLength / 2 - 50;
+      ball.pos.y = (float(i + 1) / _numBalls) * (_tableWidth - 100);
+      ball.pos.y -= _tableWidth / 2 - 50;
       ball.vel = vec3(0);
       ball.rot = vec3(0);
       ball.color = vec4(1.0);
@@ -192,15 +194,13 @@ public:
     }
   }
 
-  void createTrajecBalls()
+  void createTrajectoryDots()
   {
     for (int i = 0; i < 5; i++)
     {
-      Ball trajectoryBall;
-      trajectoryBall.pos = _balls[_activeBall].pos + ((1.0f / (i + 1)) * _launchVel);
-      trajectoryBall.color = vec4(0.8);
-      trajectoryBall.size = 5 + (4 - i);
-      _trajectoryBalls.push_back(trajectoryBall);
+      vec3 offset = ((1.0f / (i + 1)) * _launchVel);
+      vec3 trajectoryDot = _balls[_activeBall].pos + offset;
+      _trajectoryDots.push_back(trajectoryDot);
     }
   }
 
@@ -209,8 +209,13 @@ public:
     for (int i = 0; i < 6; i++)
     {
       vec3 hole;
-      hole.x = (i % 3) == 0 ? -(_tableLength / 2) + 50 : (i % 3) == 1 ? 0
-                                                                      : (_tableLength / 2) - 50;
+      if ((i % 3) == 0) {
+        hole.x =  -(_tableLength / 2) + 50;
+      } else if ((i % 3) == 1) {
+        hole.x =  0;
+      } else {
+        hole.x =  (_tableLength / 2) - 50;
+      }
       hole.y = (i < 3) ? (_tableWidth / 2) - 50 : -(_tableWidth / 2) + 50;
       hole.z = 0;
       _holes.push_back(hole);
@@ -251,6 +256,7 @@ public:
       }
       vec3 dist = ball.vel * dt();
       ball.pos += dist;
+      updateScreenPos();
       ball.rot += vec3(-dist.y, dist.x, 0) * float((M_PI * 2) / (M_PI * ball.size * _sphereRadius * 2));
       _balls[i] = ball;
     }
@@ -272,9 +278,9 @@ public:
       // vec3 newRelativeVel = reflect(relativeVel, normal);
       // ball1.vel = newRelativeVel;
       // vec3 beginningSumOfVels = ball1.vel + ball2.vel;
-      if (length(ball1.vel) >= 25 || length(ball2.vel) >= 25) {
-        cout << ball1.vel << " vs " << ball2.vel << endl;
-      }
+      // if (length(ball1.vel) >= 25 || length(ball2.vel) >= 25) {
+      //   cout << ball1.vel << " vs " << ball2.vel << endl;
+      // }
       if (length(ball1.vel) >= 25 && length(ball2.vel) >= 25) {
         ball1.vel = reflect(ball1.vel, normal);
         ball2.vel = reflect(ball2.vel, -normal);
@@ -291,9 +297,9 @@ public:
         // cout << " vs " << ball2.vel << endl;
         // cout << "ball reflects" << endl;
       }
-      if (length(ball1.vel) >= 25 || length(ball2.vel) >= 25) {
-        cout << ball1.vel << " vs " << ball2.vel << endl << endl;
-      }
+      // if (length(ball1.vel) >= 25 || length(ball2.vel) >= 25) {
+      //   cout << ball1.vel << " vs " << ball2.vel << endl << endl;
+      // }
       // ball1.vel = (ball2.vel - ball1.vel) / 2.0f;
       // ball2.vel = (ball1.vel - ball2.vel) / 2.0f;
       _balls[i] = ball1;
@@ -342,7 +348,7 @@ public:
     {
       if (length(_holes[i] - ball.pos) < _viewVolumeSide / 150)
       {
-        _congratsMessage = congratsMessages[ball.id];
+        _congratsMessage = congratsMessages[ball.id - 1];
         _congratsStartTime = elapsedTime() + 1;
         _numBallsSunk += 1;
         if (_numBallsSunk == 16) _endGame = true;
@@ -384,6 +390,13 @@ public:
     }
   }
 
+  void updateScreenPos() {
+    for (int i = 0; i < _numBalls; i++)
+    {
+      _balls[i].screenPos = worldToScreen(_balls[i].pos, false);
+    }
+  }
+
   int launchDetection(int clickX, int clickY)
   {
     float closestDist = 99999999;
@@ -392,8 +405,8 @@ public:
     for (int i = 0; i < _numBalls; i++)
     {
       // vec2 ballPos = worldToScreen(_balls[i].pos, false);
-      vec2 ballPos = worldToScreen(_balls[i].pos, !_flipY);
-      float dist = length(ballPos - clickPos);
+      // vec2 ballPos = worldToScreen(_balls[i].pos, !_flipY);
+      float dist = length(_balls[i].screenPos - clickPos);
       if (dist < _ballDefaultSize)
       {
         if (dist < closestDist)
@@ -401,6 +414,7 @@ public:
           closestDist = dist;
           closestDistIdx = i;
           _launching = true;
+          cout << i << ") " << _balls[i].screenPos << " " << clickPos << endl;
         }
       }
     }
@@ -408,12 +422,20 @@ public:
   }
 
   vec2 worldToScreen(vec3 worldPos, bool flipY) {
-    vec4 eyePos = renderer.viewMatrix() * vec4(worldPos, 1.0);
-    vec4 projPos = renderer.projectionMatrix() * eyePos;
+    vec4 x = vec4(1, 0, 0, 0);
+    vec4 y = vec4(0, cos(-M_PI_2), -sin(-M_PI_2), 0);
+    vec4 z = vec4(0, sin(-M_PI_2), cos(-M_PI_2),0);
+    vec4 w = vec4(0, 0, 0, 1);
+    mat4 rotMat = mat4(x, y, z, w);
+    mat4 viewMat = inverse(rotMat * inverse(renderer.viewMatrix()));
+    vec4 eyePos = viewMat * vec4(worldPos, 1.0);
+    mat4 projMat = renderer.projectionMatrix();
+    vec4 projPos = projMat * eyePos;
     projPos /= projPos.w;
     float screenX = (projPos.x + 1.0f) * width() / 2;
-    float screenY = (projPos.y + 1.0f) * height() / 2;
-    if (flipY) screenY = (1.0f - projPos.y) * height() / 2;
+    float screenY;
+    if (flipY) screenY = (projPos.y + 1.0f) * height() / 2;
+    else screenY = (1.0f - projPos.y) * height() / 2;
     return vec2(screenX, screenY);
   }
 
@@ -421,7 +443,6 @@ public:
   {
     renderer.setUniform("MaterialColor", vec4(1));
     renderer.texture("Image", "pool-table");
-    // renderer.texture("bumpMap", "pool-table-normal");
     renderer.push();
     // center table, align it horizontally, and scale to fit view volume
     renderer.translate(vec3(0, 0, -75));
@@ -471,18 +492,35 @@ public:
     renderer.setUniform("PoolBall", false);
   }
 
-  void drawTrajectoryBalls()
+  void drawScreenPos() {
+    renderer.setDepthTest(false);
+    renderer.blendMode(agl::ADD);
+    renderer.beginShader("sprite");
+    for (int i = 0; i < _numBalls; i++)
+    {
+      // renderer.sprite(vec3(_balls[i].screenPos - vec2(width() / 2, height() / 2), 0), vec4(1, 0, 0, 1), _balls[i].size * _sphereRadius * 2);
+      string message = to_string(_balls[i].id);
+      float x = _balls[i].screenPos.x - renderer.textWidth(message) * 0.5f;
+      float y = _balls[i].screenPos.y + renderer.textHeight() * 0.25f;
+      renderer.text(message, x, y);
+    }
+    renderer.endShader();
+    renderer.setDepthTest(true);
+    renderer.blendMode(agl::DEFAULT);
+  }
+
+  void drawTrajectoryDots()
   {
     if (_launching)
     {
-      renderer.texture("Image", "trajectoryBall");
+      renderer.texture("Image", "trajectoryDot");
       renderer.setDepthTest(false);
       renderer.blendMode(agl::ADD);
       renderer.beginShader("sprite");
-      for (int i = 0; i < _trajectoryBalls.size(); i++)
+      for (int i = 0; i < _trajectoryDots.size(); i++)
       {
-        renderer.sprite(_trajectoryBalls[i].pos, _trajectoryBalls[i].color,
-                        _trajectoryBalls[i].size, 0.0);
+        renderer.sprite(_trajectoryDots[i], vec4(0.8),
+                        5 + (4 - i), 0.0);
       }
       renderer.endShader();
       renderer.setDepthTest(true);
@@ -641,9 +679,9 @@ public:
   }
 
   void drawLogo() {
-    renderer.push();
     renderer.beginShader("texture");
     renderer.texture("Image", "logo");
+    renderer.push();
     float xPos = _viewVolumeSide / 2.75;
     float yPos = -_viewVolumeSide / 6.7;
     float zPos = _viewVolumeSide / 3.5;
@@ -668,8 +706,8 @@ public:
     renderer.quad();
     renderer.setDepthTest(true);
     renderer.blendMode(agl::DEFAULT);
-    renderer.endShader();
     renderer.pop();
+    renderer.endShader();
   }
 
   void drawFluid() {
@@ -678,7 +716,12 @@ public:
     renderer.beginShader("fluid");
     renderer.setUniform("Resolution", vec2(width(), height()));
     renderer.setUniform("Time", elapsedTime());
-    vec3 ballPos = vec3(worldToScreen(_balls[_activeBall].pos, _flipY), 1);
+    vec3 ballPos;
+    if (_activeBall == -1) {
+      ballPos = vec3(worldToScreen(vec3(0), true), 1);
+    } else {
+      ballPos = vec3(worldToScreen(_balls[_activeBall].pos, true), 1);
+    }
     // vec3 ballPos = _balls[_activeBall].pos;
     renderer.setUniform("BallPos", ballPos);
     renderer.push();
@@ -696,35 +739,19 @@ public:
   void drawSkybox(string cubemapName) {
     renderer.push();
     // renderer.rotate(vec3(M_PI_2, 0, 0));
-    renderer.setUniform("ModelMatrix", renderer.modelMatrix());
     renderer.cubemap("Cubemap", cubemapName);
     renderer.setUniform("Skybox", true);
-    renderer.skybox(_viewVolumeSide * 5);
+    renderer.skybox(_viewVolumeSide * _skyBoxSize);
     renderer.setUniform("Skybox", false);
     renderer.pop();
   }
 
-  void setupReflections()
+  void updateCamPos()
   {
-    renderer.setUniform("ViewMatrix", renderer.viewMatrix());
-    renderer.setUniform("ProjMatrix", renderer.projectionMatrix());
-    renderer.setUniform("LightPos", _lightPos);
-    renderer.setUniform("LightColor", _lightColor.x, _lightColor.y, _lightColor.z);
-    renderer.setUniform("EyePos", _camPos);
-    float ka = 0.1, kd = 0.7, ks = 0.6;
-    float phongExp = 50.0;
-    renderer.setUniform("Ka", ka);
-    renderer.setUniform("Kd", kd);
-    renderer.setUniform("Ks", ks);
-    renderer.setUniform("PhongExp", phongExp);
-  }
-
-  vec3 updateOrbitPos(float offset)
-  {
-    float x = _radius * sin(_azimuth + offset) * cos(_elevation + offset);
-    float y = _radius * sin(_elevation + offset);
-    float z = _radius * cos(_azimuth + offset) * cos(_elevation + offset);
-    return vec3(x, y, z);
+    float x = _radius * sin(_azimuth) * cos(_elevation);
+    float y = _radius * sin(_elevation);
+    float z = _radius * cos(_azimuth) * cos(_elevation);
+    _camPos =  vec3(x, y, z);
   }
 
   void mouseMotion(int x, int y, int dx, int dy)
@@ -734,9 +761,9 @@ public:
       if (_launching)
       {
         _launchVel += _flipY? vec3(dx, -dy, 0) : vec3(-dx, dy, 0);
-        for (int i = 0; i < _trajectoryBalls.size(); i++)
+        for (int i = 0; i < _trajectoryDots.size(); i++)
         {
-          _trajectoryBalls[i].pos = _balls[_activeBall].pos + ((1.0f / (i + 1)) * _launchVel);
+          _trajectoryDots[i] = _balls[_activeBall].pos + ((1.0f / (i + 1)) * _launchVel);
         }
       }
       else if (!_orbiting)
@@ -748,7 +775,7 @@ public:
           _balls[_activeBall].vel = vec3(0);
           _balls[_activeBall].color /= 2.0f;
           _launchVel = _flipY? vec3(dx, -dy, 0) : vec3(-dx, dy, 0);
-          createTrajecBalls();
+          createTrajectoryDots();
         }
         else
         {
@@ -784,7 +811,15 @@ public:
       _azimuth = 2 * M_PI;
     }
     _flipY = !(_azimuth < M_PI_2 || _azimuth > 1.5 * M_PI);
-    // cout << _flipY << endl;
+    updateScreenPos();
+    if (rand() % 30 == 0) {
+      cout << "camPos: " << _camPos << endl;
+      cout << renderer.viewMatrix()[0] << endl;
+      cout << renderer.viewMatrix()[1] << endl;
+      cout << renderer.viewMatrix()[2] << endl;
+      cout << renderer.viewMatrix()[3] << endl;
+      cout << endl;
+    }
   }
 
   void mouseDown(int button, int mods)
@@ -813,7 +848,7 @@ public:
         _balls[_activeBall].color *= 2.0f;
         _launching = false;
         _launchVel = vec3(0);
-        _trajectoryBalls.clear();
+        _trajectoryDots.clear();
       }
       else if (_orbiting)
       {
@@ -864,13 +899,15 @@ public:
   {
     float aspect = width() / height();
     renderer.perspective(glm::radians(60.0f), aspect, 0.1f, _viewVolumeSide * _skyBoxSize);
-    // renderer.ortho(0, width(), 0, height(), -_radius, _radius);
-    // cout << renderer.projectionMatrix() << endl << endl;
 
-    _camPos = updateOrbitPos(0);
+    updateCamPos();
+    // _up = vec3(0, 0, 1);
+    // _camPos = vec3(_camPos.x, -_camPos.z, _camPos.y);
+    // if (flipY) renderer.lookAt(_camPos, _lookPos, _up);
+    // else renderer.lookAt(_camPos, _lookPos, vec3(0, 0, 1));
+    // renderer.lookAt(vec3(_camPos.x, -_camPos.z, _camPos.y), _lookPos, vec3(0, 0, 1));
+    // renderer.lookAt(vec3(_camPos.x, _camPos.y, _camPos.z), _lookPos, _up);
     renderer.lookAt(_camPos, _lookPos, _up);
-
-    _lightPos = updateOrbitPos(M_PI_4);
 
     _time += dt();
 
@@ -914,8 +951,10 @@ public:
 
     renderer.beginShader("cubemap");
 
-    // setting phong shading uniforms
-    setupReflections();
+    renderer.setUniform("ModelMatrix", renderer.modelMatrix());
+    renderer.setUniform("ViewMatrix", renderer.viewMatrix());
+    renderer.setUniform("CamPos", _camPos);
+
     drawSkybox("shanghai-bund");
     renderer.push();
     renderer.rotate(vec3(-M_PI_2, 0, 0));
@@ -924,7 +963,8 @@ public:
     drawCueStick();
     updatePoolBalls();
     drawPoolBalls();
-    drawTrajectoryBalls();
+    drawScreenPos();
+    drawTrajectoryDots();
     if (_showLogo) drawLogo();
     drawEye();
     if (_enableChaos) chaos();
@@ -954,9 +994,9 @@ protected:
   vec3 _up = vec3(0, 1, 0);
   float _azimuth = M_PI;
   float _elevation = M_PI_2 - 0.017;
+  // float _azimuth = 0;
+  // float _elevation = 0;
   float _orbiting = false;
-  vec3 _lightPos = vec3(_viewVolumeSide, _viewVolumeSide, _viewVolumeSide);
-  vec3 _lightColor = vec3(1.0, 1.0, 1.0);
 
   std::vector<Ball> _balls;
   int _numBalls = 16;
@@ -964,10 +1004,9 @@ protected:
 
   bool _leftClick = false;
   bool _launching = false;
-  std::vector<Ball> _trajectoryBalls;
-  // std::vector<Ball> _trailingBalls;
+  std::vector<vec3> _trajectoryDots;
   std::vector<vec3> _holes;
-  int _activeBall = 0;
+  int _activeBall = -1;
   vec3 _launchVel = vec3(0);
 
   PLYMesh _poolTableMesh;
