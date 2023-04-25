@@ -76,7 +76,6 @@ void Game::loadShaders()
   renderer.loadShader("billboard-animated", "../shaders/billboard-animated.vs", "../shaders/billboard-animated.fs");
   renderer.loadShader("fluid", "../shaders/fluid.vs", "../shaders/fluid.fs");
   renderer.loadShader("billboard", "../shaders/billboard.vs", "../shaders/billboard.fs");
-  renderer.loadShader("eye", "../shaders/eye-of-sauron.vs", "../shaders/eye-of-sauron.fs");
   renderer.loadShader("vignette", "../shaders/vignette.vs", "../shaders/vignette.fs");
 }
 
