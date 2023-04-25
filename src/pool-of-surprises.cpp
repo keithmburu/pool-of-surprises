@@ -133,7 +133,7 @@ void Game::startGame() {
   float timer = elapsedTime();
   renderer.fontSize(width() / 13);
   string message; float x; float y;
-  if (timer < 25) {
+  if (timer < 27) {
     if (timer < 10) {
       renderer.setDepthTest(false);
       renderer.blendMode(agl::ADD);  
@@ -149,14 +149,14 @@ void Game::startGame() {
       renderer.endShader(); 
       renderer.setDepthTest(true);
       renderer.blendMode(agl::DEFAULT);  
-    } else if (timer < 14) {
-      message = "Hey, you there!";   
-    } else if (timer < 17) {
-      message = "Welcome to Omicron Persei 8, stranger. I'm Glorb.";
-    } else if (timer < 21) {
-      message = "How about a game of pool while you find your bearings?";
+    } else if (timer < 13) {
+      message = "\"Hey, you there!\"";   
+    } else if (timer < 18) {
+      message = "\"Welcome to Omicron Persei 8, stranger. I'm Glorb.\"";
+    } else if (timer < 23) {
+      message = "\"Fancy a game of pool while you find your bearings?\"";
     } else {
-      message = "I warn you, it might not be quite like you expect...";
+      message = "\"Fair warning, it might not be quite like you expect...\"";
     }
     x = width() / 2 - renderer.textWidth(message) * 0.5f;
     y = height() * 0.9 + renderer.textHeight() * 0.25f;
@@ -193,9 +193,19 @@ void Game::createTrajectoryDots()
 {
   for (int i = 0; i < 5; i++)
   {
-    vec3 offset = ((1.0f / (i + 1)) * _launchVel);
+    vec3 offset = (1.0f / (i + 1)) * _launchVel;
     vec3 trajectoryDot = _balls[_activeBall].pos + offset;
     _trajectoryDots.push_back(trajectoryDot);
+  }
+}
+
+void Game::updateTrajectoryDots()
+{
+  for (int i = 0; i < 5; i++)
+  {
+    vec3 offset = (1.0f / (i + 1)) * _launchVel;
+    vec3 trajectoryDot = _balls[_activeBall].pos + offset;
+    _trajectoryDots[i] = trajectoryDot;
   }
 }
 
@@ -353,8 +363,8 @@ void Game::endGame() {
       x = width() / 2 - renderer.textWidth(message) * 0.5f;
       y = height() * 0.9 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
-    } else if (timer < 13) {
-      _eyeDiameterModifier += (width() / 500) * 0.008;
+    } else if (timer < 12) {
+      _eyeDiameterModifier += (width() / 500) * 0.007;
     } else {
       renderer.fontSize(width() / 3);
       message = "FIN";
@@ -460,7 +470,6 @@ void Game::drawTrajectoryDots()
     renderer.setDepthTest(false);
     renderer.blendMode(agl::ADD);
     renderer.beginShader("texture");
-    // renderer.beginShader("sprite");
     renderer.setUniform("Color", vec4(1));
     renderer.texture("Image", "trajectoryDot");
     for (int i = 0; i < _trajectoryDots.size(); i++)
@@ -468,15 +477,9 @@ void Game::drawTrajectoryDots()
       renderer.push();
       renderer.translate(_trajectoryDots[i]);
       renderer.scale(vec3(5 + (4 - i)));
-      vec3 z = normalize(_up - _trajectoryDots[i]);
-      vec3 x = normalize(cross(_up , z));
-      vec3 y = normalize(cross(z, x));
-      mat3 R = mat3(x, y, z);
-      renderer.rotate(R);
+      renderer.translate(vec3(-0.5, -0.5, 0));
       renderer.quad();
       renderer.pop();
-      // renderer.sprite(_trajectoryDots[i], vec4(0.8),
-      //                 5 + (4 - i), 0.0);
     }
     renderer.endShader();
     renderer.setDepthTest(true);
@@ -725,10 +728,7 @@ void Game::mouseMotion(int x, int y, int dx, int dy)
       vec4 addVel = vec4(-dx, dy, 0, 0);
       addVel = glm::rotate(mat4(1.0), _azimuth, vec3(0, 0, 1)) * addVel;
       _launchVel += vec3(addVel);
-      for (int i = 0; i < _trajectoryDots.size(); i++)
-      {
-        _trajectoryDots[i] = _balls[_activeBall].pos + ((1.0f / (i + 1)) * _launchVel);
-      }
+      updateTrajectoryDots();
     }
     else if (!_orbiting)
     {
@@ -909,7 +909,7 @@ void Game::draw()
       renderer.fontColor(vec4(1, 0, 0, 1));
     }
     renderer.fontSize(width() / 15);
-    string message = "MODE: " + _chaosEffect;
+    string message = "STATUS EFFECT: " + _chaosEffect;
     float x = width() / 2 - renderer.textWidth(message) * 0.5f;
     float y = height() * 0.85 + renderer.textHeight() * 0.25f;
     renderer.text(message, x, y);
