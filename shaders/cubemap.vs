@@ -24,7 +24,6 @@ void main()
       if (vTextureCoords.x > 0.5) {
          uv = vec2(2 * vTextureCoords.x, vTextureCoords.y);
       } else {
-         // uv = vec2(vTextureCoords.x, vTextureCoords.y);
          uv = vec2(1, 0.5);
       }
    } else if (EyeOfSauron) {
