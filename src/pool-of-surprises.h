@@ -173,6 +173,11 @@ public:
     void drawTrajectoryDots();
 
     /**
+    * Updates the trajectory dots with new velocity.
+    */
+    void updateTrajectoryDots();
+
+    /**
     * Draws the Eye of Sauron, rotating it to face the user of the active ball
     */
     void drawEye();
