@@ -98,7 +98,7 @@ public:
     /**
     * Initializes the "pockets" in the pool table and their positions.
     */
-    void createHoles();
+    void createPockets();
 
     /**
     * Updates the positions,velocities, etc. of the pool balls.
@@ -122,12 +122,12 @@ public:
     void boundaryDetection(Ball& ball);
 
     /**
-    * Detects if a ball is sufficiently close to a hole and executes           * the appropriate game actions.
+    * Detects if a ball is sufficiently close to a pocket and executes the *appropriate game actions.
     *
     * @param ball The ball to check.
     * @return True if the ball is sunk, false otherwise.
     */
-    bool holeDetection(Ball& ball);
+    bool pocketDetection(Ball& ball);
 
     /**
     * Runs the end-of-game sequence.
@@ -310,7 +310,7 @@ protected:
     bool _leftClick = false;
     bool _launching = false;
     std::vector<vec3> _trajectoryDots;
-    std::vector<vec3> _holes;
+    std::vector<vec3> _pockets;
     int _activeBall = -1;
     vec3 _launchVel = vec3(0);
 
