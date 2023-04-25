@@ -31,7 +31,7 @@ void Game::setup()
   loadMeshes();
 
   createPoolBalls();
-  createHoles();
+  createPockets();
 
   for (string effect : _chaosEffects)
   {
@@ -77,6 +77,7 @@ void Game::loadShaders()
   renderer.loadShader("fluid", "../shaders/fluid.vs", "../shaders/fluid.fs");
   renderer.loadShader("billboard", "../shaders/billboard.vs", "../shaders/billboard.fs");
   renderer.loadShader("eye", "../shaders/eye-of-sauron.vs", "../shaders/eye-of-sauron.fs");
+  renderer.loadShader("vignette", "../shaders/vignette.vs", "../shaders/vignette.fs");
 }
 
 void Game::loadMeshes()
@@ -133,14 +134,29 @@ void Game::startGame() {
   float timer = elapsedTime();
   renderer.fontSize(width() / 13);
   string message; float x; float y;
-  if (timer < 22) {
-    if (timer < 9) {
-      message = "Hey, you there!";
-    } else if (timer < 13.5) {
+  if (timer < 25) {
+    if (timer < 10) {
+      renderer.setDepthTest(false);
+      renderer.blendMode(agl::ADD);  
+      renderer.beginShader("vignette");
+      renderer.setUniform("Resolution", vec2(width(), height()));
+      renderer.setUniform("Time", timer);
+      renderer.push();
+      renderer.translate(vec3(0, 0, _viewVolumeSide / 2.0f));
+      renderer.scale(vec3(width(), height(), _viewVolumeSide));
+      renderer.translate(vec3(-0.5, -0.5, 0.0));
+      renderer.quad();
+      renderer.pop();
+      renderer.endShader(); 
+      renderer.setDepthTest(true);
+      renderer.blendMode(agl::DEFAULT);  
+    } else if (timer < 14) {
+      message = "Hey, you there!";   
+    } else if (timer < 17) {
       message = "Welcome to Omicron Persei 8, stranger. I'm Glorb.";
-    } else if (timer < 17.5) {
+    } else if (timer < 21) {
       message = "How about a game of pool while you find your bearings?";
-    } else if (timer < 22) {
+    } else {
       message = "I warn you, it might not be quite like you expect...";
     }
     x = width() / 2 - renderer.textWidth(message) * 0.5f;
@@ -184,21 +200,21 @@ void Game::createTrajectoryDots()
   }
 }
 
-void Game::createHoles()
+void Game::createPockets()
 {
   for (int i = 0; i < 6; i++)
   {
-    vec3 hole;
+    vec3 pocket;
     if ((i % 3) == 0) {
-      hole.x =  -(_tableLength / 2) + 50;
+      pocket.x =  -(_tableLength / 2) + 50;
     } else if ((i % 3) == 1) {
-      hole.x =  0;
+      pocket.x =  0;
     } else {
-      hole.x =  (_tableLength / 2) - 50;
+      pocket.x =  (_tableLength / 2) - 50;
     }
-    hole.y = (i < 3) ? (_tableWidth / 2) - 50 : -(_tableWidth / 2) + 50;
-    hole.z = 0;
-    _holes.push_back(hole);
+    pocket.y = (i < 3) ? (_tableWidth / 2) - 50 : -(_tableWidth / 2) + 50;
+    pocket.z = 0;
+    _pockets.push_back(pocket);
   }
 }
 
@@ -216,9 +232,11 @@ void Game::updatePoolBalls()
         ball.size = 0;
         _eyeDiameterModifier += 0.02;
         _eyeColor = vec4(0, 1, 0, 0.5);
+        _numBallsSunk += 1;
+        if (_numBallsSunk == 16) _endGame = true;
       }
     } else {
-      bool sinking = holeDetection(ball);
+      bool sinking = pocketDetection(ball);
       if (!sinking) {
         bool collided = false;
         for (int j = i + 1; j < _numBalls && !collided; j++)
@@ -302,23 +320,21 @@ void Game::boundaryDetection(Ball& ball)
   }
 }
 
-bool Game::holeDetection(Ball& ball)
+bool Game::pocketDetection(Ball& ball)
 {
   for (int i = 0; i < 6; i++)
   {
-    if (length(_holes[i] - ball.pos) < _viewVolumeSide / 150)
+    if (length(_pockets[i] - ball.pos) < _viewVolumeSide / 150)
     {
       _congratsMessage = congratsMessages[ball.id - 1];
       _congratsStartTime = elapsedTime() + 1;
-      _numBallsSunk += 1;
-      if (_numBallsSunk == 16) _endGame = true;
       ball.vel = 0.5f * (_glorbPos - ball.pos);
       ball.size *= 2;
       return true;
     }
-    else if (length(_holes[i] - ball.pos) < _viewVolumeSide / 50)
+    else if (length(_pockets[i] - ball.pos) < _viewVolumeSide / 50)
     {
-      ball.vel = 10.0f * (_holes[i] - ball.pos);
+      ball.vel = 10.0f * (_pockets[i] - ball.pos);
       return true;
     }
   }
@@ -681,7 +697,7 @@ void Game::drawFluid() {
   renderer.pop();
   renderer.endShader();
   renderer.setDepthTest(true);
-  renderer.blendMode(agl::DEFAULT);
+  renderer.blendMode(agl::DEFAULT);     
 }
 
 void Game::drawSkybox(string cubemapName) {
@@ -828,7 +844,7 @@ void Game::keyUp(int key, int mods)
       _balls[i].vel = vec3(0);
     }
   } else if (key == GLFW_KEY_E) {
-    _congratsStartTime = elapsedTime() + 1;
+    _congratsStartTime = elapsedTime();
     _endGame = true;
   } else if (key == GLFW_KEY_S) {
     _startGame = false;
@@ -849,42 +865,9 @@ void Game::draw()
 
   _time += dt();
 
-  if (_startGame) startGame();
-  else _glorbPos.y = 0;
-
-  if (elapsedTime() - _congratsStartTime < 5)
-  {
-    renderer.fontSize(width() / 20);
-    float x = width() / 2 - renderer.textWidth(_congratsMessage) * 0.5f;
-    float y = height() * 0.94 + renderer.textHeight() * 0.25f;
-    renderer.text(_congratsMessage, x, y);
-    _glorbPos.z += 0.5 * sin(10 * _time);
-  } else {
-    _glorbPos.z = 200;
-  }
   if (elapsedTime() - _congratsStartTime > 1)
   {
     _eyeColor = vec4(1);
-  }
-
-  if (!_startGame && !_endGame) {
-    if (_chaosEffect == "Plain Jane") {
-      renderer.fontColor(vec4(0, 1, 0, 1));
-    } else {
-      renderer.fontColor(vec4(1, 0, 0, 1));
-    }
-    renderer.fontSize(width() / 15);
-    string message = "MODE: " + _chaosEffect;
-    float x = width() / 2 - renderer.textWidth(message) * 0.5f;
-    float y = height() * 0.85 + renderer.textHeight() * 0.25f;
-    renderer.text(message, x, y);
-    renderer.fontColor(vec4(0.98, 0.94, 0.82, 1));
-
-    message = "BALLS DEVOURED: " + to_string(_numBallsSunk);
-    renderer.fontSize(width() / 20);
-    x = width() * 0.97 - renderer.textWidth(message);
-    y = height() / 10 + renderer.textHeight() * 0.25f;
-    renderer.text(message, x, y);
   }
 
   renderer.beginShader("cubemap");
@@ -907,6 +890,38 @@ void Game::draw()
   drawEye();
   if (_enableChaos) chaos();
   if (_endGame) endGame();
+  if (_startGame) startGame();
+  else _glorbPos.y = 0;
+  if (_endGame) endGame();
+  if (elapsedTime() - _congratsStartTime < 5)
+  {
+    renderer.fontSize(width() / 20);
+    float x = width() / 2 - renderer.textWidth(_congratsMessage) * 0.5f;
+    float y = height() * 0.94 + renderer.textHeight() * 0.25f;
+    renderer.text(_congratsMessage, x, y);
+    _glorbPos.z += 0.5 * sin(10 * _time);
+  } else {
+    _glorbPos.z = 200;
+  }
+  if (!_startGame && !_endGame) {
+    if (_chaosEffect == "Plain Jane") {
+      renderer.fontColor(vec4(0, 1, 0, 1));
+    } else {
+      renderer.fontColor(vec4(1, 0, 0, 1));
+    }
+    renderer.fontSize(width() / 15);
+    string message = "MODE: " + _chaosEffect;
+    float x = width() / 2 - renderer.textWidth(message) * 0.5f;
+    float y = height() * 0.85 + renderer.textHeight() * 0.25f;
+    renderer.text(message, x, y);
+    renderer.fontColor(vec4(0.98, 0.94, 0.82, 1));
+
+    message = "BALLS DEVOURED: " + to_string(_numBallsSunk);
+    renderer.fontSize(width() / 20);
+    x = width() * 0.97 - renderer.textWidth(message);
+    y = height() / 10 + renderer.textHeight() * 0.25f;
+    renderer.text(message, x, y);
+  }
   renderer.pop();
   
   renderer.endShader();
