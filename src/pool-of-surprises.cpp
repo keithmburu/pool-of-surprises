@@ -6,15 +6,12 @@
  */
 
 #include "pool-of-surprises.h"
-#include "agl/window.h"
-#include "plymesh.h"
 #include "unistd.h"
 #include <cmath>
-#include <string>
-#include <vector>
-#include <map>
 #include <algorithm>
 #include <ctime>
+#include <cstdlib>
+#include <iostream>
 
 using namespace std;
 using namespace glm;
@@ -43,6 +40,72 @@ void Game::setup()
   vec4 z = vec4(0, sin(-M_PI_2), cos(-M_PI_2), 0);
   vec4 w = vec4(0, 0, 0, 1);
   _sceneRotMat = mat4(x, y, z, w);
+
+	
+  _result = FMOD::System_Create(&_system);		
+	ERRCHECK(_result);
+
+	_result = _system->init(100, FMOD_INIT_NORMAL, 0);	
+	ERRCHECK(_result);
+
+  // Initialize background music
+	_result = _system->createStream(
+      "../sounds/sci-fi-space-ambient-3-inside-a-ufo-by-jedimaster_CGSGmmoR.wav", 
+      FMOD_DEFAULT, 0, &_music1);
+	ERRCHECK(_result);
+
+  _result = _system->createStream(
+      "../sounds/Ice 9 (Stripped - The Backing Track).wav", 
+      FMOD_DEFAULT, 0, &_music2);
+	ERRCHECK(_result);
+  
+  _result = _system->createStream(
+      "../sounds/endgame.mp3", 
+      FMOD_DEFAULT, 0, &_music3);
+	ERRCHECK(_result);
+
+  _result = _music1->setMode(FMOD_LOOP_NORMAL);
+	ERRCHECK(_result);
+
+	_result = _system->playSound(_music1, 0, true, &_backgroundChannel);
+  ERRCHECK(_result);
+
+  // Set volume while sound is paused
+	_result = _backgroundChannel->setVolume(0.5f); 
+	ERRCHECK(_result);
+
+	_result = _backgroundChannel->setPaused(false); 
+	ERRCHECK(_result);
+
+  // Initialize foreground sound
+	_result = _system->createStream(
+      "../sounds/pool-ball-1.wav", 
+      FMOD_DEFAULT, 0, &_sound1);
+  ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/pool-ball-pocket.mp3", 
+      FMOD_DEFAULT, 0, &_sound2);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/explosion.mp3", 
+      FMOD_DEFAULT, 0, &_sound3);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/pool-ball-collision.mp3", 
+      FMOD_DEFAULT, 0, &_sound4);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/table-boundary.mp3", 
+      FMOD_DEFAULT, 0, &_sound5);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/eye-expanding.mp3", 
+      FMOD_DEFAULT, 0, &_sound6);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/sitcom-laughs.mp3", 
+      FMOD_DEFAULT, 0, &_sound7);
+	ERRCHECK(_result);
 }
 
 void Game::loadTextures()
@@ -165,6 +228,15 @@ void Game::startGame() {
   } else {
     _showLogo = true;
     _elevation -= (width() / 500) * (M_PI / 180);
+    if (_music1 != NULL) {
+      _backgroundChannel->setPaused(true);
+      _backgroundChannel->stop();
+      _music1->release();
+      _result = _system->playSound(_music2, 0, true, &_backgroundChannel);
+      ERRCHECK(_result);
+      _result = _backgroundChannel->setPaused(false); 
+  	  ERRCHECK(_result);
+    }
   }
   if (_elevation < M_PI_4 * 0.75) _startGame = false;
 }
@@ -296,6 +368,8 @@ bool Game::collisionDetection(int i, int j)
       }
       _balls[i] = ball1;
       _balls[j] = ball2;
+      _result = _system->playSound(_sound4, 0, false, 0);
+	    ERRCHECK(_result);	
       return true;
     } else {
       return false;
@@ -317,6 +391,8 @@ void Game::boundaryDetection(Ball& ball)
     ball.pos.x += (ballRight > xThresh) ? xThresh - ballRight : 0;
     ball.vel.x = _chaosStatus["Sticky Situation"] ? 0 : -ball.vel.x;
     ball.vel.y = _chaosStatus["Sticky Situation"] ? 0 : ball.vel.y;
+    _result = _system->playSound(_sound5, 0, false, 0);
+	  ERRCHECK(_result);	
   }
   float yThresh = (_tableWidth - 75) / 2.0f;
   float ballBottom = ball.pos.y - ballRadius;
@@ -327,6 +403,8 @@ void Game::boundaryDetection(Ball& ball)
     ball.pos.y += (ballTop > xThresh) ? yThresh - ballTop : 0;
     ball.vel.y = _chaosStatus["Sticky Situation"] ? 0 : -ball.vel.y;
     ball.vel.x = _chaosStatus["Sticky Situation"] ? 0 : ball.vel.x;
+    _result = _system->playSound(_sound5, 0, false, 0);
+	  ERRCHECK(_result);
   }
 }
 
@@ -336,6 +414,8 @@ bool Game::pocketDetection(Ball& ball)
   {
     if (length(_pockets[i] - ball.pos) < _viewVolumeSide / 150)
     {
+      _result = _system->playSound(_sound2, 0, false, 0);
+	    ERRCHECK(_result);		
       _congratsMessage = congratsMessages[ball.id - 1];
       _congratsStartTime = elapsedTime() + 1;
       ball.vel = 0.5f * (_glorbPos - ball.pos);
@@ -364,14 +444,29 @@ void Game::endGame() {
       x = width() / 2 - renderer.textWidth(message) * 0.5f;
       y = height() * 0.9 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
+      if (_music2 != NULL) {
+        _backgroundChannel->setPaused(true);
+        _backgroundChannel->stop();
+        _music2->release();
+        _result = _system->playSound(_music3, 0, true, &_backgroundChannel);
+        ERRCHECK(_result);
+        _result = _backgroundChannel->setPaused(false); 
+    	  ERRCHECK(_result);
+      }
     } else if (timer < 11) {
       _eyeDiameterModifier += (width() / 500) * 0.005;
+      if (timer == 9) {
+        _result = _system->playSound(_sound6, 0, false, 0);
+  	    ERRCHECK(_result);	
+      }
     } else {
       renderer.fontSize(width() / 3);
       message = "FIN";
       x = width() / 2 - renderer.textWidth(message) * 0.5f;
       y = height() / 2 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
+      _result = _system->playSound(_sound7, 0, false, 0);
+	    ERRCHECK(_result);	
     }
   }
 }
@@ -536,6 +631,8 @@ void Game::chaos()
   {
     _chaosAnimStart = elapsedTime() + 1;
     _chaosAnimation = true;
+    _result = _system->playSound(_sound3, 0, false, 0);
+	  ERRCHECK(_result);
     string effect = _chaosEffects[rand() % _chaosEffects.size()];
     while (effect == _chaosEffect) {
       effect = _chaosEffects[rand() % _chaosEffects.size()];
@@ -806,6 +903,8 @@ void Game::mouseUp(int button, int mods)
       {
         _balls[_activeBall].vel = _launchVel;
       }
+      _result = _system->playSound(_sound1, 0, false, 0);
+		  ERRCHECK(_result);	
       _balls[_activeBall].color *= 2.0f;
       _launching = false;
       _launchVel = vec3(0);
@@ -849,13 +948,38 @@ void Game::keyUp(int key, int mods)
   } else if (key == GLFW_KEY_E) {
     _congratsStartTime = elapsedTime();
     _endGame = true;
+    if (_music2 != NULL) {
+      _backgroundChannel->setPaused(true);
+      _backgroundChannel->stop();
+      _music2->release();
+      _result = _system->playSound(_music3, 0, true, &_backgroundChannel);
+      ERRCHECK(_result);
+      _result = _backgroundChannel->setPaused(false); 
+  	  ERRCHECK(_result);
+    }
   } else if (key == GLFW_KEY_S) {
     _startGame = false;
     _showLogo = true;
     _elevation = M_PI_4 * 0.75;
+    _backgroundChannel->setPaused(true);
+    _backgroundChannel->stop();
+    _music1->release();
+    _result = _system->playSound(_music2, 0, true, &_backgroundChannel);
+    ERRCHECK(_result);
+    _result = _backgroundChannel->setPaused(false); 
+	  ERRCHECK(_result);
   } else if (key == GLFW_KEY_X) {
      screenshot("../demo/screenshot-" + std::to_string(rand() % 10000) + ".png");
   } 
+}
+
+void Game::ERRCHECK(FMOD_RESULT result) {
+  if (result != FMOD_OK)
+  {
+    printf("FMOD error! (%d) %s\n", 
+       result, FMOD_ErrorString(result));
+    exit(-1);
+  }
 }
 
 void Game::draw()
@@ -884,7 +1008,7 @@ void Game::draw()
   renderer.rotate(vec3(-M_PI_2, 0, 0));
   if (_chaosAnimation) drawChaosTransition();
   drawPoolTable();
-  // drawFluid();
+  drawFluid();
   drawCueStick();
   updatePoolBalls();
   drawPoolBalls();
@@ -913,13 +1037,13 @@ void Game::draw()
       renderer.fontColor(vec4(1, 0, 0, 1));
     }
     renderer.fontSize(width() / 15);
-    string message = "STATUS EFFECT: " + _chaosEffect;
+    string message = "Status Effect: " + _chaosEffect;
     float x = width() / 2 - renderer.textWidth(message) * 0.5f;
     float y = height() * 0.85 + renderer.textHeight() * 0.25f;
     renderer.text(message, x, y);
     renderer.fontColor(vec4(0.98, 0.94, 0.82, 1));
 
-    message = "BALLS DEVOURED: " + to_string(_numBallsSunk);
+    message = "Balls Devoured: " + to_string(_numBallsSunk);
     renderer.fontSize(width() / 20);
     x = width() * 0.97 - renderer.textWidth(message);
     y = height() / 10 + renderer.textHeight() * 0.25f;
@@ -931,6 +1055,8 @@ void Game::draw()
   
   if (_time - int(_time) < 0.01)
     cout << int(1/dt()) << " FPS" << endl;
+	
+  _system->update();
 }
 
 int main(int argc, char **argv)

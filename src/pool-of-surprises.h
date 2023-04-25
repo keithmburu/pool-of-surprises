@@ -5,11 +5,13 @@
  * @brief An alternative version of pool
  */
 
+#include "agl/window.h"
+#include "plymesh.h"
+#include "fmod_errors.h"
+#include "fmod.hpp"
 #include <string>
 #include <vector>
 #include <map>
-#include "agl/window.h"
-#include "plymesh.h"
 
 using namespace std;
 using namespace glm;
@@ -31,6 +33,7 @@ public:
     Game() : Window()
     {
         setWindowSize(500, 500);
+        // setWindowSize(1920, 1080);
     }
 
     virtual ~Game() 
@@ -284,6 +287,8 @@ public:
      */
     void keyUp(int key, int mods);
 
+    void ERRCHECK(FMOD_RESULT result);
+
     /**
      * Draws the current scene.
      */
@@ -369,4 +374,20 @@ protected:
     };
 
     bool _endGame = false;
+
+
+    FMOD_RESULT _result;
+    FMOD::System *_system = NULL;
+	FMOD::Channel *_backgroundChannel = NULL;
+	FMOD::Sound *_music1;
+    FMOD::Sound *_music2;
+    FMOD::Sound *_music3;
+	FMOD::Sound *_sound1;
+    FMOD::Sound *_sound2;
+    FMOD::Sound *_sound3;
+    FMOD::Sound *_sound4;
+    FMOD::Sound *_sound5;
+    FMOD::Sound *_sound6;
+    FMOD::Sound *_sound7;
+    char _key;
 };
