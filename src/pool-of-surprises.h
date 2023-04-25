@@ -344,6 +344,7 @@ protected:
     bool _enableChaos = true;
     bool _chaosAnimation = false;
     float _chaosAnimStart = 9999;
+    vec3 _tiltDir;
 
     float _congratsStartTime = -9999;
     string _congratsMessage;

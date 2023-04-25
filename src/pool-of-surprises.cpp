@@ -254,9 +254,7 @@ void Game::updatePoolBalls()
         }
         ball = _balls[i];
         boundaryDetection(ball);
-        if (_chaosStatus["Tilt-a-Table"]) {
-          ball.vel += float(pow(-1, rand())) * vec3(1, 0, 0);
-        }
+        if (_chaosStatus["Tilt-a-Table"]) ball.vel += _tiltDir;
         ball.vel *= _chaosStatus["Friction Affliction"] ? 0.8f : 0.99f;
         // if not hovering and not floating up to glorb, null z-component
         if (ball.pos.z < 40) {
@@ -557,6 +555,9 @@ void Game::chaos()
           else if (effect == "Biggie Smalls")
           {
             sizeChaos();
+          } else if (effect == "Tilt-a-Table")
+          {
+            _tiltDir = float(pow(-1, rand())) * vec3(1, 0, 0);
           }
         }
       }
@@ -883,7 +884,7 @@ void Game::draw()
   renderer.rotate(vec3(-M_PI_2, 0, 0));
   if (_chaosAnimation) drawChaosTransition();
   drawPoolTable();
-  drawFluid();
+  // drawFluid();
   drawCueStick();
   updatePoolBalls();
   drawPoolBalls();
