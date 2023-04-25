@@ -20,7 +20,6 @@ void main() {
             vec2 pixelProj = mix(quadUV, ballUV, clamp(p, -0.5, 1.0));
             float distFromLine = (p < 0.15)? distance(pixelUV, pixelProj) : 0.5;
             color = mix(vec3(0, clamp(length(line) + sin(Time), 0.2, 0.4), 0), color, min(distFromLine / 0.05, 1));
-            // color = mix(vec3(cos(Time), length(line), sin(Time)), color, smoothstep(0, 1, distFromLine / 0.05));            
         }
     }
     fragColor = vec4(color, 1.0);
