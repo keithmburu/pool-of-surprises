@@ -49,7 +49,7 @@ void Game::loadTextures()
 {
   for (int i = 0; i < std::min(_numBalls, 16); i++)
   {
-    renderer.loadTexture("ball_" + to_string(i + 1), "../textures/pool-balls/ball_" + to_string(i + 1) + ".png", 0);
+    renderer.loadTexture("Ball" + to_string(i + 1), "../textures/pool-balls/Ball" + to_string(i + 1) + ".jpg", 0);
   }
   renderer.loadTexture("trajectoryDot", "../textures/pool-balls/ParticleBokeh.png", 0);
   renderer.loadTexture("pool-table", "../textures/pool-table/PoolTable_poolTable_BaseColor.png", 0);
@@ -454,11 +454,11 @@ void Game::drawPoolBalls()
   for (int i = 0; i < _numBalls; i++)
   {
     renderer.setUniform("MaterialColor", _balls[i].color);
-    renderer.texture("Image", "ball_" + to_string(i + 1));
+    renderer.texture("Image", "Ball" + to_string(i + 1));
     renderer.push();
     renderer.translate(_balls[i].pos);
     renderer.rotate(_balls[i].rot);
-    renderer.rotate(vec3(0, 0, M_PI));
+    renderer.rotate(vec3(0, 0, -M_PI_2));
     renderer.scale(vec3(_balls[i].size));
     renderer.sphere();
     renderer.pop();
