@@ -21,11 +21,12 @@ void main()
    gl_Position = MVP * vec4(vPosition, 1.0);
    vPos = vec3(MVP * vec4(vPosition, 1.0));
    if (PoolBall) {
-      if (vTextureCoords.x > 0.5) {
-         uv = vec2(2 * vTextureCoords.x, vTextureCoords.y);
-      } else {
-         uv = vec2(1, 0.5);
-      }
+      // if (vTextureCoords.x > 0.5) {
+      //    uv = vec2(2 * vTextureCoords.x, vTextureCoords.y);
+      // } else {
+      //    uv = vec2(1, 0.5);
+      // }
+      uv = vec2(vTextureCoords.x, vTextureCoords.y);
    } else if (EyeOfSauron) {
       if (vTextureCoords.x > 0.5) {
          uv = vec2(2 * vTextureCoords.x, -vTextureCoords.y);
