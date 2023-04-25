@@ -32,7 +32,8 @@ class Game : public Window
 public:
     Game() : Window()
     {
-        setWindowSize(500, 500);
+        // setWindowSize(500, 500);
+        setWindowSize(960, 540);
         // setWindowSize(1920, 1080);
     }
 

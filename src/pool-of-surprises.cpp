@@ -196,7 +196,7 @@ void Game::startGame() {
   float timer = elapsedTime();
   renderer.fontSize(width() / 13);
   string message; float x; float y;
-  if (timer < 27) {
+  if (timer < 28) {
     if (timer < 10) {
       renderer.setDepthTest(false);
       renderer.blendMode(agl::ADD);  
@@ -232,6 +232,7 @@ void Game::startGame() {
       _backgroundChannel->setPaused(true);
       _backgroundChannel->stop();
       _music1->release();
+      _music1 = NULL;
       _result = _system->playSound(_music2, 0, true, &_backgroundChannel);
       ERRCHECK(_result);
       _result = _backgroundChannel->setPaused(false); 
@@ -349,23 +350,15 @@ bool Game::collisionDetection(int i, int j)
   // if not floating up to glorb
   if (ball2.size != 2 * _ballDefaultSize) {
     float overlap = _sphereRadius * (ball1.size + ball2.size) - length(ball1.pos - ball2.pos);
-    if (overlap > 0.1)
+    if (overlap > 1)
     {
       vec3 normal = normalize(ball1.pos - ball2.pos);
       ball1.pos += normal * overlap / 2.0f;
       ball2.pos -= normal * overlap / 2.0f;
-      float ball1Vel = length(ball1.vel);
-      float ball2Vel = length(ball2.vel);
-      if (ball1Vel < ball2Vel) {
-        ball1.vel = (ball1.vel + ball2.vel) / 4.0f;
-        ball2.vel = reflect(ball2.vel, -normal) / 2.0f;
-      } else if (ball1Vel > ball2Vel) {
-        ball1.vel = reflect(ball1.vel, normal) / 2.0f;
-        ball2.vel = (ball1.vel + ball2.vel) / 4.0f;
-      } else {
-        ball1.vel = reflect(ball1.vel, normal);
-        ball2.vel = reflect(ball2.vel, -normal);
-      }
+      vec3 ball1NormalVel = dot(ball1.vel, normal) * normal;
+      vec3 ball2NormalVel = dot(ball2.vel, normal) * normal;
+      ball1.vel += ball2NormalVel - ball1NormalVel;
+      ball2.vel += ball1NormalVel - ball2NormalVel;
       _balls[i] = ball1;
       _balls[j] = ball2;
       _result = _system->playSound(_sound4, 0, false, 0);
@@ -444,29 +437,37 @@ void Game::endGame() {
       x = width() / 2 - renderer.textWidth(message) * 0.5f;
       y = height() * 0.9 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
+    } else if (timer < 11) {
+      _eyeDiameterModifier += (width() / 500) * 0.005;
       if (_music2 != NULL) {
         _backgroundChannel->setPaused(true);
         _backgroundChannel->stop();
         _music2->release();
+        _music2 = NULL;
         _result = _system->playSound(_music3, 0, true, &_backgroundChannel);
         ERRCHECK(_result);
         _result = _backgroundChannel->setPaused(false); 
-    	  ERRCHECK(_result);
-      }
-    } else if (timer < 11) {
-      _eyeDiameterModifier += (width() / 500) * 0.005;
-      if (timer == 9) {
-        _result = _system->playSound(_sound6, 0, false, 0);
-  	    ERRCHECK(_result);	
+    	  ERRCHECK(_result);	
       }
     } else {
-      renderer.fontSize(width() / 3);
+      renderer.fontSize(width() / 13);
       message = "FIN";
       x = width() / 2 - renderer.textWidth(message) * 0.5f;
       y = height() / 2 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
-      _result = _system->playSound(_sound7, 0, false, 0);
-	    ERRCHECK(_result);	
+      // renderer.fontSize(width() / 13);
+      // message = "\"I don't feel so good...\"";
+      // x = width() / 2 - renderer.textWidth(message) * 0.5f;
+      // y = height() * 0.9 + renderer.textHeight() * 0.25f;
+      // renderer.text(message, x, y);
+      if (timer > 14 && _music3 != NULL) {
+        _backgroundChannel->setPaused(true);
+        _backgroundChannel->stop();
+        _music3->release();
+        _music3 = NULL;
+        _result = _system->playSound(_sound7, 0, false, 0);
+  	    ERRCHECK(_result);	
+      }
     }
   }
 }
@@ -948,15 +949,6 @@ void Game::keyUp(int key, int mods)
   } else if (key == GLFW_KEY_E) {
     _congratsStartTime = elapsedTime();
     _endGame = true;
-    if (_music2 != NULL) {
-      _backgroundChannel->setPaused(true);
-      _backgroundChannel->stop();
-      _music2->release();
-      _result = _system->playSound(_music3, 0, true, &_backgroundChannel);
-      ERRCHECK(_result);
-      _result = _backgroundChannel->setPaused(false); 
-  	  ERRCHECK(_result);
-    }
   } else if (key == GLFW_KEY_S) {
     _startGame = false;
     _showLogo = true;
