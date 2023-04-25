@@ -233,6 +233,8 @@ void Game::startGame() {
       _backgroundChannel->stop();
       _music1->release();
       _music1 = NULL;
+      _result = _music2->setMode(FMOD_LOOP_NORMAL);
+	    ERRCHECK(_result);
       _result = _system->playSound(_music2, 0, true, &_backgroundChannel);
       ERRCHECK(_result);
       _result = _backgroundChannel->setPaused(false); 
@@ -328,9 +330,9 @@ void Game::updatePoolBalls()
         ball = _balls[i];
         boundaryDetection(ball);
         if (_chaosStatus["Tilt-a-Table"]) ball.vel += _tiltDir;
-        ball.vel *= _chaosStatus["Friction Affliction"] ? 0.8f : 0.99f;
-        // if not hovering and not floating up to glorb, null z-component
-        if (ball.pos.z < 40) {
+        ball.vel *= _chaosStatus["Friction Affliction"] ? 0.75f : 0.95f;
+        // if not hovering, not enlarged or shrunk, and not floating up to glorb, null z-component
+        if (ball.pos.z < 40 && ball.size == _ballDefaultSize) {
           ball.pos.z = 0;
           ball.vel.z = 0;
         }
@@ -380,8 +382,8 @@ void Game::boundaryDetection(Ball& ball)
   float ballRight = ball.pos.x + ballRadius;
   if (ballLeft < -xThresh || ballRight > xThresh)
   {
-    ball.pos.x += (ballLeft < -xThresh) ? -xThresh - ballLeft : 0;
-    ball.pos.x += (ballRight > xThresh) ? xThresh - ballRight : 0;
+    if (ballLeft < -xThresh) ball.pos.x += -xThresh - ballLeft;
+    else if (ballRight > xThresh) ball.pos.x -= ballRight - xThresh;
     ball.vel.x = _chaosStatus["Sticky Situation"] ? 0 : -ball.vel.x;
     ball.vel.y = _chaosStatus["Sticky Situation"] ? 0 : ball.vel.y;
     _result = _system->playSound(_sound5, 0, false, 0);
@@ -392,8 +394,8 @@ void Game::boundaryDetection(Ball& ball)
   float ballTop = ball.pos.y + ballRadius;
   if (ball.pos.y < -yThresh || ball.pos.y > yThresh)
   {
-    ball.pos.y += (ballBottom < -xThresh) ? -yThresh - ballBottom : 0;
-    ball.pos.y += (ballTop > xThresh) ? yThresh - ballTop : 0;
+    if (ballBottom < -yThresh) ball.pos.y += -yThresh - ballBottom;
+    else if (ballTop > yThresh) ball.pos.y -= ballTop - yThresh;
     ball.vel.y = _chaosStatus["Sticky Situation"] ? 0 : -ball.vel.y;
     ball.vel.x = _chaosStatus["Sticky Situation"] ? 0 : ball.vel.x;
     _result = _system->playSound(_sound5, 0, false, 0);
@@ -438,7 +440,7 @@ void Game::endGame() {
       y = height() * 0.9 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
     } else if (timer < 11) {
-      _eyeDiameterModifier += (width() / 500) * 0.005;
+      _eyeDiameterModifier += (width() / 500) * 0.006;
       if (_music2 != NULL) {
         _backgroundChannel->setPaused(true);
         _backgroundChannel->stop();
@@ -450,7 +452,7 @@ void Game::endGame() {
     	  ERRCHECK(_result);	
       }
     } else {
-      renderer.fontSize(width() / 13);
+      renderer.fontSize(height() / 2);
       message = "FIN";
       x = width() / 2 - renderer.textWidth(message) * 0.5f;
       y = height() / 2 + renderer.textHeight() * 0.25f;
@@ -593,7 +595,7 @@ void Game::drawEye()
   renderer.translate(_glorbPos);
   vec3 lookPos;
   // face camera or active ball
-  if (_startGame || (!_launching && length(_balls[_activeBall].vel) < 5) || _orbiting || _endGame) {
+  if (_startGame || (!_launching && length(_balls[_activeBall].vel) < 5) || _orbiting || _endGame || _activeBall == -1) {
     lookPos = vec3(_camPos.x, -_camPos.z, _camPos.y);
   } else {
     lookPos = _balls[_activeBall].pos;
@@ -626,7 +628,7 @@ void Game::chaos()
     }
   }
 
-  int newEffectThresh = 250;
+  int newEffectThresh = 120;
   int frame = int(_time * 30);
   if (frame % newEffectThresh == 0 && !_startGame && !_endGame)
   {
