@@ -336,7 +336,7 @@ protected:
     map<string, bool> _chaosStatus;
     string _chaosEffect = "Plain Jane";
     float _time = 0.0f;
-    bool _enableChaos = false;
+    bool _enableChaos = true;
     bool _chaosAnimation = false;
     float _chaosAnimStart = 9999;
 
