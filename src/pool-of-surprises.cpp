@@ -254,10 +254,13 @@ void Game::updatePoolBalls()
         }
         ball = _balls[i];
         boundaryDetection(ball);
-        if (_chaosStatus["Tilt-a-Table"]) ball.vel += vec3(1, 0, 0);
+        if (_chaosStatus["Tilt-a-Table"]) {
+          ball.vel += float(pow(-1, rand())) * vec3(1, 0, 0);
+        }
         ball.vel *= _chaosStatus["Friction Affliction"] ? 0.8f : 0.99f;
-        // if not hovering and not floating up to glorb, null z
+        // if not hovering and not floating up to glorb, null z-component
         if (ball.pos.z < 40) {
+          ball.pos.z = 0;
           ball.vel.z = 0;
         }
       }
@@ -363,8 +366,8 @@ void Game::endGame() {
       x = width() / 2 - renderer.textWidth(message) * 0.5f;
       y = height() * 0.9 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
-    } else if (timer < 12) {
-      _eyeDiameterModifier += (width() / 500) * 0.007;
+    } else if (timer < 11) {
+      _eyeDiameterModifier += (width() / 500) * 0.005;
     } else {
       renderer.fontSize(width() / 3);
       message = "FIN";
