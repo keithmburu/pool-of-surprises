@@ -33,8 +33,11 @@ public:
     Game() : Window()
     {
         // setWindowSize(500, 500);
+        // setWindowSize(640, 360);
         // setWindowSize(960, 540);
-        setWindowSize(1920, 1080);
+        setWindowSize(1280, 720);
+        // setWindowSize(1600, 900);
+        // setWindowSize(1920, 1080);
     }
 
     virtual ~Game() 
