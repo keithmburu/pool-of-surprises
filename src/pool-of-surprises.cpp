@@ -193,16 +193,16 @@ vec3 Game::centerVector(PLYMesh mesh, string meshName)
 }
 
 void Game::startGame() {
-  float timer = elapsedTime();
   renderer.fontSize(width() / 13);
   string message; float x; float y;
-  if (timer < 26) {
-    if (timer < 8) {
+  float vignetteTime = 14.0;
+  if (_time < vignetteTime + 18) {
+    if (_time < vignetteTime) {
       renderer.setDepthTest(false);
       renderer.blendMode(agl::ADD);  
       renderer.beginShader("vignette-dissolve");
       renderer.setUniform("Resolution", vec2(width(), height()));
-      renderer.setUniform("Time", timer);
+      renderer.setUniform("Time", _time);
       renderer.push();
       renderer.translate(vec3(0, 0, _viewVolumeSide / 2.0f));
       renderer.scale(vec3(width(), height(), _viewVolumeSide));
@@ -212,11 +212,11 @@ void Game::startGame() {
       renderer.endShader(); 
       renderer.setDepthTest(true);
       renderer.blendMode(agl::DEFAULT);  
-    } else if (timer < 11) {
+    } else if (_time < vignetteTime + 3) {
       message = "\"Hey, you there!\"";   
-    } else if (timer < 16) {
+    } else if (_time < vignetteTime + 8) {
       message = "\"Welcome to Omicron Persei 8, stranger. I'm Glorb.\"";
-    } else if (timer < 21) {
+    } else if (_time < vignetteTime + 13) {
       message = "\"Fancy a game of pool while you find your bearings?\"";
     } else {
       message = "\"Fair warning, it might not be quite like you expect...\"";
@@ -224,7 +224,7 @@ void Game::startGame() {
     x = width() / 2 - renderer.textWidth(message) * 0.5f;
     y = height() * 0.9 + renderer.textHeight() * 0.25f;
     renderer.text(message, x, y);
-    _glorbPos.y += 0.5 * sin(10 * timer);
+    _glorbPos.y += 0.5 * sin(10 * _time);
   } else {
     _showLogo = true;
     _elevation -= (width() / 500) * (M_PI / 180);
@@ -354,7 +354,11 @@ bool Game::collisionDetection(int i, int j)
     float overlap = _sphereRadius * (ball1.size + ball2.size) - length(ball1.pos - ball2.pos);
     if (overlap > 1)
     {
-      vec3 normal = normalize(ball1.pos - ball2.pos);
+      vec3 ball1Pos = ball1.pos;
+      vec3 ball2Pos = ball2.pos;
+      ball1Pos.z -= _sphereRadius * (ball1.size - _ballDefaultSize);
+      ball2Pos.z -= _sphereRadius * (ball2.size - _ballDefaultSize);
+      vec3 normal = normalize(ball1Pos - ball2Pos);
       ball1.pos += normal * overlap / 2.0f;
       ball2.pos -= normal * overlap / 2.0f;
       vec3 ball1NormalVel = dot(ball1.vel, normal) * normal;
@@ -452,16 +456,11 @@ void Game::endGame() {
     	  ERRCHECK(_result);	
       }
     } else {
-      renderer.fontSize(height() / 2);
+      renderer.fontSize(height() / 3);
       message = "FIN";
       x = width() / 2 - renderer.textWidth(message) * 0.5f;
       y = height() / 2 + renderer.textHeight() * 0.25f;
       renderer.text(message, x, y);
-      // renderer.fontSize(width() / 13);
-      // message = "\"I don't feel so good...\"";
-      // x = width() / 2 - renderer.textWidth(message) * 0.5f;
-      // y = height() * 0.9 + renderer.textHeight() * 0.25f;
-      // renderer.text(message, x, y);
       if (timer > 14 && _music3 != NULL) {
         _backgroundChannel->setPaused(true);
         _backgroundChannel->stop();
@@ -1047,8 +1046,8 @@ void Game::draw()
   
   renderer.endShader();
   
-  if (_time - int(_time) < 0.01)
-    cout << int(1/dt()) << " FPS" << endl;
+  // if (_time - int(_time) < 0.01)
+  //   cout << int(1/dt()) << " FPS" << endl;
 	
   _system->update();
 }
