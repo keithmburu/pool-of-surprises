@@ -1,8 +1,8 @@
 /**
  * @file pool-of-surprises.cpp
- * @author 
- * @date 2023-04-18
- * @brief Implements an alternate version of pool
+ * @author Keith Mburu
+ * @date 2023-04-27
+ * @brief Implements an alternate take on pool/billiards
  */
 
 #include "pool-of-surprises.h"

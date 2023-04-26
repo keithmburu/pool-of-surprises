@@ -1,8 +1,8 @@
 /**
  * @file pool-of-surprises.h
  * @author Keith Mburu
- * @date 2023-04-24
- * @brief An alternative version of pool
+ * @date 2023-04-27
+ * @brief An alternate take on pool/billiards
  */
 
 #include "agl/window.h"
@@ -32,12 +32,7 @@ class Game : public Window
 public:
     Game() : Window()
     {
-        // setWindowSize(500, 500);
-        // setWindowSize(640, 360);
-        // setWindowSize(960, 540);
         setWindowSize(1280, 720);
-        // setWindowSize(1600, 900);
-        // setWindowSize(1920, 1080);
     }
 
     virtual ~Game() 
