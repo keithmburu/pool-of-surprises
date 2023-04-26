@@ -1,7 +1,8 @@
 # Pool of Surprises
+
 ## A Wild and Wacky Billiards Bonanza
 
-<img src="demo/screenshot-7022.png" width="400">
+![](demo/main-1080p.png)
 
 This project presents an alternative take on the classic game of pool/billiards. 
 
@@ -11,12 +12,16 @@ Also implemented is an anomalous "fluid" on the table surface that reacts to the
 
 Overall, this is a distinctive and fun offshoot of the traditional pool game, with unique features that make gameplay more dynamic.
 
-## Results
+## Demo
 
-<img src="demo/screenshot-4891.png" width="400">
-<img src="demo/screenshot-1144.png" width="400">
-<img src="demo/screenshot-3938.png" width="400">
+<iframe src="https://drive.google.com/file/d/1UB1ST8POsLKhhmD0AkWLD0sRBZ0QWcMl/view?usp=share_link" width="640" height="480"></iframe>
 
+![](demo/vignette.png)
+![](demo/intro.png)
+![](demo/rose-curve.png)
+![](demo/hover-havoc.png)
+![](demo/biggie-smalls.png)
+![](demo/outro.png)
 
 ## Details
 
@@ -108,7 +113,4 @@ pool-of-surprises/build $ ../bin/pool-of-surprises
 
 - Sound effects (https://www.soundfishing.eu/)
 
-- Music (https://www.youtube.com/watch?v=TVlgG-Kil1Y) (https://www.youtube.com/watch?v=xlAFxo3el8Y)
-
-
-
+- Music (https://www.youtube.com/watch?v=TVlgG-Kil1Y) (https://www.youtube.com/watch?v=xlAFxo3el8Y) 

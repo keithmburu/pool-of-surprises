@@ -42,7 +42,7 @@ void Game::setup()
   _sceneRotMat = mat4(x, y, z, w);
 
   _result = FMOD::System_Create(&_system);		
-	ERRCHECK(_result)
+	ERRCHECK(_result);
 	_result = _system->init(100, FMOD_INIT_NORMAL, 0);	
 	ERRCHECK(_result);
 
@@ -95,7 +95,7 @@ void Game::setup()
 	ERRCHECK(_result);
   _result = _system->createStream(
       "../sounds/sitcom-laughs.mp3", 
-      FMOD_DEFAULT, 0, &_launchSound);
+      FMOD_DEFAULT, 0, &_laughSound);
 	ERRCHECK(_result);
 }
 
@@ -456,7 +456,7 @@ void Game::endGame() {
         _backgroundChannel->stop();
         _outroMusic->release();
         _outroMusic = NULL;
-        _result = _system->playSound(_launchSound, 0, false, 0);
+        _result = _system->playSound(_laughSound, 0, false, 0);
   	    ERRCHECK(_result);	
       }
     }
