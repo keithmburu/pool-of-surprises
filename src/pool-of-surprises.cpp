@@ -41,28 +41,14 @@ void Game::setup()
   vec4 w = vec4(0, 0, 0, 1);
   _sceneRotMat = mat4(x, y, z, w);
 
+  // initialize FMOD system
   _result = FMOD::System_Create(&_system);		
 	ERRCHECK(_result);
 	_result = _system->init(100, FMOD_INIT_NORMAL, 0);	
 	ERRCHECK(_result);
 
-  // Initialize background music
-	_result = _system->createStream(
-      "../sounds/sci-fi-space-ambient-3-inside-a-ufo-by-jedimaster_CGSGmmoR.wav", 
-      FMOD_DEFAULT, 0, &_introMusic);
-	ERRCHECK(_result);
-  _result = _system->createStream(
-      "../sounds/Ice 9 (Stripped - The Backing Track).wav", 
-      FMOD_DEFAULT, 0, &_mainMusic);
-	ERRCHECK(_result);
-  _result = _system->createStream(
-      "../sounds/endgame.mp3", 
-      FMOD_DEFAULT, 0, &_outroMusic);
-	ERRCHECK(_result);
-  _result = _introMusic->setMode(FMOD_LOOP_NORMAL);
-	ERRCHECK(_result);
-  _result = _mainMusic->setMode(FMOD_LOOP_NORMAL);
-	ERRCHECK(_result);
+  initMusic();
+  initSounds();
 
   // start playing background music
 	_result = _system->playSound(_introMusic, 0, true, &_backgroundChannel);
@@ -70,33 +56,7 @@ void Game::setup()
 	_result = _backgroundChannel->setVolume(0.5f); 
 	ERRCHECK(_result);
 	_result = _backgroundChannel->setPaused(false); 
-	ERRCHECK(_result);
-
-  // Initialize foreground sound
-	_result = _system->createStream(
-      "../sounds/pool-ball-1.wav", 
-      FMOD_DEFAULT, 0, &_launchSound);
-  ERRCHECK(_result);
-  _result = _system->createStream(
-      "../sounds/pool-ball-pocket.mp3", 
-      FMOD_DEFAULT, 0, &_pocketSound);
-	ERRCHECK(_result);
-  _result = _system->createStream(
-      "../sounds/explosion.mp3", 
-      FMOD_DEFAULT, 0, &_explosionSound);
-	ERRCHECK(_result);
-  _result = _system->createStream(
-      "../sounds/pool-ball-collision.mp3", 
-      FMOD_DEFAULT, 0, &_collisionSound);
-	ERRCHECK(_result);
-  _result = _system->createStream(
-      "../sounds/table-boundary.mp3", 
-      FMOD_DEFAULT, 0, &_boundarySound);
-	ERRCHECK(_result);
-  _result = _system->createStream(
-      "../sounds/sitcom-laughs.mp3", 
-      FMOD_DEFAULT, 0, &_laughSound);
-	ERRCHECK(_result);
+	ERRCHECK(_result);	
 }
 
 void Game::loadTextures()
@@ -180,6 +140,52 @@ vec3 Game::centerVector(PLYMesh mesh, string meshName)
   float centroidY = (minBounds[1] + maxBounds[1]) / 2.0f;
   float centroidZ = (minBounds[2] + maxBounds[2]) / 2.0f;
   return vec3(-centroidX, -centroidY, -centroidZ);
+}
+
+void Game::initMusic() {
+	_result = _system->createStream(
+      "../sounds/sci-fi-space-ambient-3-inside-a-ufo-by-jedimaster_CGSGmmoR.wav", 
+      FMOD_DEFAULT, 0, &_introMusic);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/Ice 9 (Stripped - The Backing Track).wav", 
+      FMOD_DEFAULT, 0, &_mainMusic);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/endgame.mp3", 
+      FMOD_DEFAULT, 0, &_outroMusic);
+	ERRCHECK(_result);
+  _result = _introMusic->setMode(FMOD_LOOP_NORMAL);
+	ERRCHECK(_result);
+  _result = _mainMusic->setMode(FMOD_LOOP_NORMAL);
+	ERRCHECK(_result);
+}
+
+void Game::initSounds() {
+  _result = _system->createStream(
+      "../sounds/pool-ball-1.wav", 
+      FMOD_DEFAULT, 0, &_launchSound);
+  ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/pool-ball-pocket.mp3", 
+      FMOD_DEFAULT, 0, &_pocketSound);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/explosion.mp3", 
+      FMOD_DEFAULT, 0, &_explosionSound);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/pool-ball-collision.mp3", 
+      FMOD_DEFAULT, 0, &_collisionSound);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/table-boundary.mp3", 
+      FMOD_DEFAULT, 0, &_boundarySound);
+	ERRCHECK(_result);
+  _result = _system->createStream(
+      "../sounds/sitcom-laughs.mp3", 
+      FMOD_DEFAULT, 0, &_laughSound);
+	ERRCHECK(_result);
 }
 
 void Game::startGame() {
@@ -1035,9 +1041,6 @@ void Game::draw()
   renderer.pop();
   
   renderer.endShader();
-  
-  // if (_time - int(_time) < 0.01)
-  //   cout << int(1/dt()) << " FPS" << endl;
 	
   _system->update();
 }

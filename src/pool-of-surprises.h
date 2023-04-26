@@ -83,6 +83,16 @@ public:
     vec3 centerVector(PLYMesh mesh, string meshName);
 
     /**
+    * Initialize background music
+    */
+    void initMusic();
+
+    /**
+    * Initialize foreground sounds
+    */
+    void initSounds();
+
+    /**
     * Runs the start-of-game sequence.
     */
     void startGame();
@@ -387,5 +397,4 @@ protected:
     FMOD::Sound *_collisionSound;
     FMOD::Sound *_boundarySound;
     FMOD::Sound *_laughSound;
-    char _key;
 };
