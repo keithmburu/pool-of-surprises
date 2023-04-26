@@ -8,13 +8,14 @@ void main() {
     float distFromCenter = length(pos);
     float alpha = 1.0;
     float intensity = 1.0;
-    if (Time > 6.0) {
+    float startTime = 12.0;
+    if (Time > startTime) {
         alpha = smoothstep(0.0, 1.0, distFromCenter);
-        if (Time < 7.0) {
-            alpha = mix(1.0, alpha, (Time - 6.0) / 1.0f);
+        if (Time < startTime + 1) {
+            alpha = mix(1.0, alpha, (Time - startTime) / 1.0f);
         }
-        if (Time < 8.0) {
-            intensity = smoothstep(1.0, 0.0, (Time - 6.0) / 2.0f);
+        if (Time < startTime + 2) {
+            intensity = smoothstep(1.0, 0.0, (Time - startTime) / 2.0f);
         }
     }
     vec3 color = alpha * intensity * vec3(1.0);
