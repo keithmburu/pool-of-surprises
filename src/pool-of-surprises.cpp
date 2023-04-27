@@ -196,8 +196,8 @@ void Game::startGame() {
   float timer = elapsedTime();
   renderer.fontSize(width() / 13);
   string message; float x; float y;
-  if (timer < 28) {
-    if (timer < 10) {
+  if (timer < 26) {
+    if (timer < 8) {
       renderer.setDepthTest(false);
       renderer.blendMode(agl::ADD);  
       renderer.beginShader("vignette");
@@ -212,11 +212,11 @@ void Game::startGame() {
       renderer.endShader(); 
       renderer.setDepthTest(true);
       renderer.blendMode(agl::DEFAULT);  
-    } else if (timer < 13) {
+    } else if (timer < 11) {
       message = "\"Hey, you there!\"";   
-    } else if (timer < 18) {
+    } else if (timer < 16) {
       message = "\"Welcome to Omicron Persei 8, stranger. I'm Glorb.\"";
-    } else if (timer < 23) {
+    } else if (timer < 21) {
       message = "\"Fancy a game of pool while you find your bearings?\"";
     } else {
       message = "\"Fair warning, it might not be quite like you expect...\"";
