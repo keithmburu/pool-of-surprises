@@ -10,8 +10,8 @@ void main() {
     vec2 pixelUV = gl_FragCoord.xy / Resolution.xy;
     vec2 ballUV = BallPos.xy / Resolution.xy;
     vec3 color = vec3(0);
-    int numCols = 25;
-    int numRows = 15;
+    int numCols = int(25 + Resolution.x / 500);
+    int numRows = int(15 + Resolution.y / 500);;
     for (int i = 1; i < numCols; i++) {
         for (int j = 1; j < numRows; j++) {
             vec2 quadUV = vec2(float(i) / numCols, float(j) / numRows);
