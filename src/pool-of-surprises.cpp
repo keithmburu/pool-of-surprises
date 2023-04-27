@@ -139,7 +139,7 @@ void Game::loadShaders()
   renderer.loadShader("billboard-animated", "../shaders/billboard-animated.vs", "../shaders/billboard-animated.fs");
   renderer.loadShader("fluid", "../shaders/fluid.vs", "../shaders/fluid.fs");
   renderer.loadShader("billboard", "../shaders/billboard.vs", "../shaders/billboard.fs");
-  renderer.loadShader("vignette", "../shaders/vignette.vs", "../shaders/vignette.fs");
+  renderer.loadShader("vignette-dissolve", "../shaders/vignette-dissolve.vs", "../shaders/vignette-dissolve.fs");
 }
 
 void Game::loadMeshes()
@@ -200,7 +200,7 @@ void Game::startGame() {
     if (timer < 8) {
       renderer.setDepthTest(false);
       renderer.blendMode(agl::ADD);  
-      renderer.beginShader("vignette");
+      renderer.beginShader("vignette-dissolve");
       renderer.setUniform("Resolution", vec2(width(), height()));
       renderer.setUniform("Time", timer);
       renderer.push();
