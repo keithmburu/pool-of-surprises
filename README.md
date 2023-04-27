@@ -1,7 +1,7 @@
 # Pool of Surprises
 ## A Wild and Wacky Billiards Bonanza
 
-<img src="demo/screenshot-4.png" width="400">
+<img src="demo/screenshot-7022.png" width="400">
 
 This project presents an alternative take on the classic game of pool/billiards. 
 
@@ -40,9 +40,9 @@ When a ball approaches a table edge, a boundary detection algorithm checks wheth
 
 A pocket detection algorithm checks if a ball is sufficiently close to one of six pockets on the table. If the distance between the center of the ball and the center of the pocket is less than a certain threshold, the ball has sunk into the pocket. If the ball is close to a pocket but not close enough, its velocity is modified slightly such that it moves towards the pocket. If all 16 balls are sunk, the game ends.
 
-To simulate friction, each ball's velocity is multiplied by 0.99 during every frame.
+To simulate friction, each ball's velocity is multiplied by 0.95 during every frame.
 
-If the "Friction Affliction" status effect is on, each ball's velocity is multiplied by 0.8 instead of 0.99 so that its speed is reduced significantly during every frame.
+If the "Friction Affliction" status effect is on, each ball's velocity is multiplied by 0.75 instead of 0.95 so that its speed is reduced significantly during every frame.
 
 If the "Sticky Situation" status effect is active and a ball hits a table edge, the ball's velocity in the reflected direction is set to zero instead of being reversed such that it sticks.
 
