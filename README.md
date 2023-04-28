@@ -14,7 +14,7 @@ Overall, this is a distinctive and fun offshoot of the traditional pool game, wi
 
 ## Demo
 
-https://user-images.githubusercontent.com/54857948/235242336-4189c734-1623-4f82-b5c2-634411a83fa5.mp4
+https://user-images.githubusercontent.com/54857948/235242564-e25a0f6d-717d-4a1a-8fbf-648bbb581236.mp4
 
 ![](demo/vignette.png)
 ![](demo/intro.png)
