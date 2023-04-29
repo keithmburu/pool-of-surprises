@@ -101,8 +101,6 @@ set(SHADERS
     shaders/fluid.vs
     shaders/texture.fs
     shaders/texture.vs
-    shaders/texture.fs
-    shaders/texture.vs
     shaders/vignette-dissolve.fs
     shaders/vignette-dissolve.vs)
 
