@@ -93,10 +93,18 @@ file(GLOB SOURCES "src/agl/*.h" "src/agl/*.cpp" "src/agl/mesh/*.h" "src/agl/mesh
 set(SHADERS
     shaders/billboard-animated.fs
     shaders/billboard-animated.vs
-    shaders/simple-texture.fs
-    shaders/simple-texture.vs
     shaders/billboard.fs
-    shaders/billboard.vs)
+    shaders/billboard.vs
+    shaders/cubemap.fs
+    shaders/cubemap.vs
+    shaders/fluid.fs
+    shaders/fluid.vs
+    shaders/texture.fs
+    shaders/texture.vs
+    shaders/texture.fs
+    shaders/texture.vs
+    shaders/vignette-dissolve.fs
+    shaders/vignette-dissolve.vs)
 
 add_executable(pool-of-surprises src/pool-of-surprises.cpp ${SOURCES} ${SHADERS})
 target_link_libraries(pool-of-surprises ${CORE})
