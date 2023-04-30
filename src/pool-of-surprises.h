@@ -296,6 +296,11 @@ public:
      */
     void keyUp(int key, int mods);
 
+    /**
+     * Checks the result of an FMOD operation and prints if it failed.
+     *
+     * @param result the result of an FMOD operation
+     */
     void ERRCHECK(FMOD_RESULT result);
 
     /**
@@ -314,6 +319,7 @@ protected:
     bool _startGame = true;
     bool _showLogo = false;
     bool _flipY = true;
+    bool _endGame = false;
 
     vec3 _camPos;
     vec3 _lookPos = vec3(0, 0, 0);
@@ -350,7 +356,6 @@ protected:
     vec4 _eyeColor = vec4(1);
     vec3 _glorbPos = vec3(0, 0, 200);
 
-
     vector<string> _chaosEffects = {"Plain Jane", "Sticky Situation", "Hover Havoc", "Biggie Smalls", "Friction Affliction", "Tilt-a-Table", "Get Gaslit"};
     map<string, bool> _chaosStatus;
     string _chaosEffect = "Plain Jane";
@@ -362,7 +367,6 @@ protected:
 
     float _congratsStartTime = -9999;
     string _congratsMessage;
-
     vector<string> congratsMessages = {
     "\"Hole in one! Oops, wrong game...\"",
     "\"I'd give you a round of applause if I could!\"",
@@ -381,9 +385,6 @@ protected:
     "\"There's more talent in your little finger than in my entire iris!\"",
     "\"That was too perfect, are you sure you're not cheating?\""
     };
-
-    bool _endGame = false;
-
 
     FMOD_RESULT _result;
     FMOD::System *_system = NULL;
