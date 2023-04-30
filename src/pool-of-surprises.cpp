@@ -590,7 +590,7 @@ void Game::drawEye()
   renderer.translate(_glorbPos);
   vec3 lookPos;
   // face camera or active ball
-  if (_startGame || (!_launching && length(_balls[_activeBall].vel) < 5) || _orbiting || _endGame || _activeBall == -1) {
+  if (_startGame || _activeBall == -1 || (!_launching && length(_balls[_activeBall].vel) < 5) || _orbiting || _endGame) {
     lookPos = vec3(_camPos.x, -_camPos.z, _camPos.y);
   } else {
     lookPos = _balls[_activeBall].pos;
@@ -623,7 +623,7 @@ void Game::chaos()
     }
   }
 
-  int newEffectThresh = 120;
+  int newEffectThresh = 150;
   int frame = int(_time * 30);
   if (frame % newEffectThresh == 0 && !_startGame && !_endGame)
   {
